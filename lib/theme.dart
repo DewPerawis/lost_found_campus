@@ -53,3 +53,8 @@ class AppTheme {
     ),
   );
 }
+
+class AppColors {
+  static const primary = Color(0xFFFFC46B);
+  static const backgroundLight = Color(0xFFFFF8E1);
+}
