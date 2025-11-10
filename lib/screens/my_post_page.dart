@@ -13,7 +13,6 @@ class MyPostPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    // คิวรีนี้ต้องมี composite index: ownerUid ASC + createdAt DESC
     final query = FirebaseFirestore.instance
         .collection('items')
         .where('ownerUid', isEqualTo: uid)
@@ -23,34 +22,22 @@ class MyPostPage extends StatelessWidget {
       appBar: AppBar(leading: const BackButton(), title: const Text('MY POST')),
       bottomNavigationBar: const BottomHomeBar(),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: query.withConverter<Map<String, dynamic>>(
-          fromFirestore: (s, _) => s.data() ?? <String, dynamic>{},
-          toFirestore: (value, _) => value,
-        ).snapshots(),
+        stream: query.snapshots(),
         builder: (context, snap) {
-          // — error: มักจะเป็น FAILED_PRECONDITION ต้องสร้าง index —
           if (snap.hasError) {
-            final err = snap.error.toString();
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'เกิดข้อผิดพลาดในการโหลดโพสต์ของคุณ\n\n'
-                  '$err\n\n'
-                  'ถ้าเห็นคำว่า FAILED_PRECONDITION หรือมีลิงก์ให้สร้าง Index '
-                  'ให้เข้า Firebase Console ▸ Firestore Database ▸ Indexes แล้วสร้าง\n'
-                  'Composite Index: ownerUid (ASC), createdAt (DESC).',
+                  'เกิดข้อผิดพลาดในการโหลดโพสต์ของคุณ:\n${snap.error}',
                   textAlign: TextAlign.center,
                 ),
               ),
             );
           }
-
-          // — loading —
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
             return const Center(child: Text('ยังไม่มีโพสต์ของคุณ'));
@@ -62,18 +49,72 @@ class MyPostPage extends StatelessWidget {
               final doc = docs[i];
               final d = doc.data();
 
-              return ItemTile(
-                title: (d['title'] ?? '') as String,
-                place: d['place'] as String?,
-                imageUrl: d['imageUrl'] as String?,
-                onTap: () {
-                  // แนบ id ไปด้วยเผื่อหน้าอื่นต้องใช้
-                  final payload = <String, dynamic>{'id': doc.id, ...d};
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ItemDetailPage(data: payload)),
-                  );
-                },
+              Future<void> deleteItem() async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('ลบโพสต์นี้?'),
+                    content: const Text('การลบไม่สามารถย้อนกลับได้'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+                      ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
+                await FirebaseFirestore.instance.collection('items').doc(doc.id).delete();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ลบโพสต์แล้ว')));
+                }
+              }
+
+              void editItem() {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddItemPage(
+                      docId: doc.id,
+                      initialData: {
+                        'title': d['title'],
+                        'place': d['place'],
+                        'desc' : d['desc'],        // ← ใช้คีย์นี้
+                        'imageUrl': d['imageUrl'],
+                        'status': d['status'],
+                      },
+                    ),
+                  ),
+                );
+              }
+
+              return Stack(
+                children: [
+                  ItemTile(
+                    title: (d['title'] ?? '') as String,
+                    place: d['place'] as String?,
+                    imageUrl: d['imageUrl'] as String?,
+                    onTap: () {
+                      final payload = <String, dynamic>{'id': doc.id, ...d};
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ItemDetailPage(data: payload)),
+                      );
+                    },
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: PopupMenuButton<String>(
+                      onSelected: (v) {
+                        if (v == 'edit') editItem();
+                        if (v == 'delete') deleteItem();
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
+                        PopupMenuItem(value: 'delete', child: Text('ลบ')),
+                      ],
+                    ),
+                  ),
+                ],
               );
             },
           );
@@ -81,10 +122,7 @@ class MyPostPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddItemPage()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddItemPage()));
         },
         child: const Icon(Icons.add),
       ),

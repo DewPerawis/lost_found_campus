@@ -5,11 +5,20 @@ import 'firebase_options.dart';
 import 'theme.dart';
 import 'screens/login_page.dart';
 import 'screens/home_menu_page.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  print('🔥 storageBucket = ${Firebase.app().options.storageBucket}');
 
+   if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   // DEBUG: ถ้าอยากบังคับให้ออกจากระบบทุกครั้งที่เปิดแอป (ชั่วคราว)
   // await FirebaseAuth.instance.signOut();
   runApp(const LostFoundApp());
