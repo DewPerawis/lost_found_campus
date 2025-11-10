@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "1062871212993",
+    "firebase_url": "https://lost-found-campus-9daa8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "lost-found-campus-9daa8",
+    "storage_bucket": "lost-found-campus-9daa8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1062871212993:android:ccf37594d81e9f25788540",
+        "android_client_info": {
+          "package_name": "com.example.lost_found_campus"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1062871212993-u812h0f8bv02bsf7oc9nv85f1l3dplbb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lost_found_campus",
+            "certificate_hash": "b8046045c9c096f0e6452ae0952f1733e997f3ea"
+          }
+        },
+        {
+          "client_id": "1062871212993-f1jnb7kjg9dvrbptsj3iru1anunntlsi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBk5NBxxcmseft8oEm-H8DaPPYNpkUWZnw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1062871212993-f1jnb7kjg9dvrbptsj3iru1anunntlsi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1062871212993-8hpdhdj5bargmraee7h2l9up9vermscm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.lostFoundCampus"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
