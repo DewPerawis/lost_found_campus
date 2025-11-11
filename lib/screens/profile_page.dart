@@ -1,8 +1,9 @@
+// lib/screens/profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // ใช้ลบรูปที่แนบใน items (ยังจำเป็น)
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -16,8 +17,332 @@ class _ProfilePageState extends State<ProfilePage> {
   final fs = FirebaseFirestore.instance;
 
   bool working = false;
-
   User? get user => auth.currentUser;
+
+  // ====== ตัวเลือกที่ให้มา ======
+  static const List<String> faculties = [
+    'ไม่ระบุ','Other','SI','RA','BM','PY','DT','NS','MT','PH','PT','VS','TM','SC','EN','LA','SH','EG','ICT','CRS','SS','RS'
+  ];
+  static const List<String> roles = ['ไม่ระบุ','Student','Teacher','Staff','Other'];
+
+  // ====== Controllers ฟอร์มแก้ไข (ไม่มี email แล้ว) ======
+  final _nameCtrl = TextEditingController();
+  final _contactCtrl = TextEditingController();
+  String _selectedFaculty = faculties.first;
+  String _selectedRole = roles.first;
+
+  // เก็บ snapshot ล่าสุดไว้ ใช้ตอนเปิดชีต (หลีกเลี่ยงแก้ state ระหว่าง build)
+  Map<String, dynamic> _lastUserData = const {};
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _contactCtrl.dispose();
+    _oldPwdCtrl.dispose();
+    _newPwdCtrl.dispose();
+    _newPwd2Ctrl.dispose();
+    super.dispose();
+  }
+
+  // เติมค่าให้คอนโทรล/ดรอปดาวน์จาก data (เรียกตอนจะเปิดชีตเท่านั้น)
+  void _hydrateFrom(Map<String, dynamic> data) {
+    _nameCtrl.text = (data['name'] ?? '').toString();
+    _contactCtrl.text = (data['contact'] ?? '').toString();
+
+    final fac = (data['faculty'] ?? 'ไม่ระบุ').toString();
+    final role = (data['role'] ?? 'ไม่ระบุ').toString();
+    _selectedFaculty = _ensureInList(fac, faculties);
+    _selectedRole = _ensureInList(role, roles);
+  }
+
+  String _ensureInList(String value, List<String> list) {
+    if (value.isEmpty) return list.first;
+    if (list.contains(value)) return value;
+    return list.first; // กันค่าแปลกจากฐานข้อมูล
+  }
+
+  Future<void> _saveProfile() async {
+    if (user == null) return;
+    final uid = user!.uid;
+
+    final newName = _nameCtrl.text.trim();
+    final newContact = _contactCtrl.text.trim();
+    final newFaculty = _selectedFaculty;
+    final newRole = _selectedRole;
+
+    setState(() => working = true);
+    try {
+      await fs.collection('users').doc(uid).set({
+        'name': newName,
+        'email': user!.email ?? '', // email อ่านอย่างเดียว
+        'contact': newContact,
+        'faculty': newFaculty,
+        'role': newRole,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // ปิดชีตแก้ไข
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บันทึกโปรไฟล์แล้ว')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
+  // ====== เปลี่ยนรหัสผ่าน ======
+  final _oldPwdCtrl = TextEditingController();
+  final _newPwdCtrl = TextEditingController();
+  final _newPwd2Ctrl = TextEditingController();
+  bool _showOld = false, _showNew = false, _showNew2 = false;
+
+  void _resetPasswordFields() {
+    _oldPwdCtrl.clear();
+    _newPwdCtrl.clear();
+    _newPwd2Ctrl.clear();
+    _showOld = _showNew = _showNew2 = false;
+  }
+
+  void _openChangePasswordSheet(BuildContext context) {
+    _resetPasswordFields();
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, top: 12,
+          ),
+          child: StatefulBuilder(
+            builder: (ctx, setLocal) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('เปลี่ยนรหัสผ่าน', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: _oldPwdCtrl,
+                  obscureText: !_showOld,
+                  decoration: InputDecoration(
+                    labelText: 'รหัสผ่านเดิม',
+                    prefixIcon: const Icon(Icons.lock_clock_rounded),
+                    suffixIcon: IconButton(
+                      icon: Icon(_showOld ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setLocal(() => _showOld = !_showOld),
+                    ),
+                    border: const OutlineInputBorder(),
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _newPwdCtrl,
+                  obscureText: !_showNew,
+                  decoration: InputDecoration(
+                    labelText: 'รหัสผ่านใหม่',
+                    prefixIcon: const Icon(Icons.lock_reset_rounded),
+                    suffixIcon: IconButton(
+                      icon: Icon(_showNew ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setLocal(() => _showNew = !_showNew),
+                    ),
+                    border: const OutlineInputBorder(),
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _newPwd2Ctrl,
+                  obscureText: !_showNew2,
+                  decoration: InputDecoration(
+                    labelText: 'ยืนยันรหัสผ่านใหม่',
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    suffixIcon: IconButton(
+                      icon: Icon(_showNew2 ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setLocal(() => _showNew2 = !_showNew2),
+                    ),
+                    border: const OutlineInputBorder(),
+                    filled: true,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: working ? null : () => _handleChangePassword(sheetContext: ctx),
+                  icon: const Icon(Icons.save_rounded),
+                  label: const Text('บันทึกรหัสผ่านใหม่'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleChangePassword({required BuildContext sheetContext}) async {
+    if (user == null) return;
+
+    // ปิดฟอร์มทันทีตามที่ต้องการ
+    Navigator.of(sheetContext).pop();
+
+    final mail   = user!.email ?? '';
+    final oldPwd = _oldPwdCtrl.text;
+    final newPwd1 = _newPwdCtrl.text;
+    final newPwd2 = _newPwd2Ctrl.text;
+
+    // เช็กกรอกครบ
+    if (oldPwd.isEmpty || newPwd1.isEmpty || newPwd2.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบทุกช่อง')),
+      );
+      return;
+    }
+
+    // เช็กรหัสใหม่ตรงกัน
+    if (newPwd1 != newPwd2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('รหัสผ่านใหม่และยืนยันไม่ตรงกัน')),
+      );
+      return;
+    }
+
+    // เช็กความยาวขั้นต่ำ
+    if (newPwd1.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('รหัสผ่านใหม่ต้องอย่างน้อย 6 ตัวอักษร')),
+      );
+      return;
+    }
+
+    if (mail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('บัญชีนี้ไม่มีอีเมลผูกไว้ ไม่สามารถเปลี่ยนรหัสผ่านได้')),
+      );
+      return;
+    }
+
+    setState(() => working = true);
+    try {
+      // re-auth ด้วยรหัสเดิม
+      final cred = EmailAuthProvider.credential(email: mail, password: oldPwd);
+      await user!.reauthenticateWithCredential(cred);
+
+      // อัปเดตรหัสผ่านใหม่
+      await user!.updatePassword(newPwd1);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เปลี่ยนรหัสผ่านเรียบร้อย')),
+      );
+    } on FirebaseAuthException catch (e) {
+      final msg = switch (e.code) {
+        'wrong-password'        => 'รหัสผ่านเดิมไม่ถูกต้อง',
+        'weak-password'         => 'รหัสผ่านใหม่ไม่ปลอดภัยพอ',
+        'requires-recent-login' => 'โปรดเข้าสู่ระบบใหม่ก่อนเปลี่ยนรหัสผ่าน',
+        _                       => e.message ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ',
+      };
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
+
+  void _openEditProfileSheet(BuildContext context) {
+    // hydrate จาก snapshot ล่าสุด “ที่นี่” (หลัง build)
+    _hydrateFrom(_lastUserData);
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16, right: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, top: 12,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('แก้ไขโปรไฟล์', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+
+                _FormField(
+                  label: 'ชื่อ',
+                  controller: _nameCtrl,
+                  icon: Icons.badge_rounded,
+                ),
+                _FormField(
+                  label: 'ติดต่อ',
+                  controller: _contactCtrl,
+                  icon: Icons.call_rounded,
+                  keyboardType: TextInputType.phone,
+                ),
+
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedFaculty, // ใช้ initialValue แทน value
+                  items: faculties.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+                  onChanged: (v) => setState(() => _selectedFaculty = v ?? faculties.first),
+                  decoration: const InputDecoration(
+                    labelText: 'คณะ (Faculty)',
+                    prefixIcon: Icon(Icons.school_rounded),
+                    border: OutlineInputBorder(),
+                    filled: true,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRole,
+                  items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                  onChanged: (v) => setState(() => _selectedRole = v ?? roles.first),
+                  decoration: const InputDecoration(
+                    labelText: 'บทบาท (Role)',
+                    prefixIcon: Icon(Icons.person_rounded),
+                    border: OutlineInputBorder(),
+                    filled: true,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: working ? null : _saveProfile,
+                  icon: const Icon(Icons.save_rounded),
+                  label: const Text('บันทึก'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'อีเมลอ่านได้อย่างเดียว • เปลี่ยนรหัสผ่านที่หน้าโปรไฟล์',
+                  style: TextStyle(fontSize: 12, color: Colors.brown.shade500),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +364,11 @@ class _ProfilePageState extends State<ProfilePage> {
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: 'แก้ไขโปรไฟล์',
+            onPressed: working ? null : () => _openEditProfileSheet(context),
+            icon: const Icon(Icons.edit_rounded),
+          ),
+          IconButton(
             tooltip: 'ออกจากระบบ',
             onPressed: working ? null : () async {
               await auth.signOut();
@@ -58,11 +388,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 return const Center(child: CircularProgressIndicator());
               }
               final data = snap.data?.data() ?? {};
-              final name     = (data['name'] ?? '').toString().trim();
-              final email    = (data['email'] ?? user!.email ?? '').toString();
-              final contact  = (data['contact'] ?? 'None').toString();
-              final faculty  = (data['faculty'] ?? 'ไม่ระบุ').toString();
-              final role     = (data['role'] ?? 'ไม่ระบุ').toString();
+
+              // เก็บ snapshot ล่าสุดไว้
+              _lastUserData = data;
+
+              final name    = (data['name'] ?? '').toString().trim();
+              final email   = (data['email'] ?? user!.email ?? '').toString();
+              final contact = (data['contact'] ?? 'None').toString();
+              final faculty = (data['faculty'] ?? 'ไม่ระบุ').toString();
+              final role    = (data['role'] ?? 'ไม่ระบุ').toString();
 
               final avatarText = (name.isNotEmpty ? name : (email.isNotEmpty ? email : 'U'))
                   .trim()
@@ -93,7 +427,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 28,
-                            backgroundColor: AppTheme.peach.withOpacity(0.25),
+                            backgroundColor: AppTheme.peach.withValues(alpha: 0.25),
                             child: Text(
                               avatarText,
                               style: const TextStyle(
@@ -133,7 +467,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     const SizedBox(height: 24),
 
-                    // Danger zone
+                    // Account zone
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -144,21 +478,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'การจัดการข้อมูล',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                          const Text('การจัดการข้อมูล', style: TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 12),
+
+                          FilledButton.tonalIcon(
+                            onPressed: working ? null : () => _openChangePasswordSheet(context),
+                            icon: const Icon(Icons.password_rounded),
+                            label: const Text('เปลี่ยนรหัสผ่าน'),
+                          ),
+                          const SizedBox(height: 8),
+
                           FilledButton.tonalIcon(
                             onPressed: working ? null : () => _confirmDeleteAllItems(context),
                             icon: const Icon(Icons.delete_sweep_rounded),
                             label: const Text('ลบรายการ (Items) ทั้งหมดของฉัน'),
                           ),
                           const SizedBox(height: 8),
+
                           FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.redAccent,
-                            ),
+                            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                             onPressed: working ? null : () => _confirmDeleteAccount(context),
                             icon: const Icon(Icons.person_off_rounded),
                             label: const Text('ลบบัญชีถาวร (พร้อมลบ Items ทั้งหมด)'),
@@ -174,7 +512,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
           if (working)
             Container(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               alignment: Alignment.center,
               child: const SizedBox(width: 36, height: 36, child: CircularProgressIndicator()),
             ),
@@ -226,7 +564,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (ok1 != true) return;
 
-    // double confirm
     final ok2 = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -255,10 +592,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => working = true);
     try {
-      // ✅ สำคัญที่สุด: โปรเจ็กต์นี้ใช้ ownerUid เป็นมาตรฐาน
+      // โปรเจ็กต์นี้ใช้ ownerUid เป็นมาตรฐาน
       await _deleteByField('ownerUid', uid);
 
-      // เผื่อมีของเก่าใช้ชื่อฟิลด์อื่น ๆ
+      // เผื่อชื่อฟิลด์เก่า
       await _deleteByField('uid', uid);
       await _deleteByField('ownerId', uid);
       await _deleteByField('userId', uid);
@@ -274,7 +611,6 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) setState(() => working = false);
     }
   }
-
 
   /// helper: ลบเอกสารทั้งหมดใน items ที่ field == value (แบบแบ่งชุด)
   Future<void> _deleteByField(String field, String value) async {
@@ -297,9 +633,7 @@ class _ProfilePageState extends State<ProfilePage> {
         if (path.isNotEmpty) {
           try {
             await FirebaseStorage.instance.ref().child(path).delete();
-          } catch (_) {
-            // ข้ามได้ถ้าลบไม่ได้
-          }
+          } catch (_) {/* ข้ามได้ */}
         }
       }
 
@@ -322,23 +656,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => working = true);
     try {
-      // 1) ลบ items ทั้งหมดของผู้ใช้
       await _deleteAllMyItems();
-
-      // 2) ลบเอกสารผู้ใช้
       await fs.collection('users').doc(uid).delete();
-
-      // 3) ลบบัญชีจาก Auth (อาจต้อง re-auth ถ้า login เก่านาน)
       await user!.delete();
 
-      // 4) กลับสู่จอแรก
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('ลบบัญชีและข้อมูลทั้งหมดเรียบร้อย')),
       );
       Navigator.of(context).popUntil((r) => r.isFirst);
     } on FirebaseAuthException catch (e) {
-      // re-auth required
       final msg = (e.code == 'requires-recent-login')
           ? 'ต้องเข้าสู่ระบบใหม่ก่อนลบบัญชี (Security Requirement)'
           : (e.message ?? 'ลบบัญชีไม่สำเร็จ');
@@ -353,25 +680,6 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     } finally {
       if (mounted) setState(() => working = false);
-    }
-  }
-
-  /// ลบแบบแบ่งหน้า: ดึงทีละชุด สร้าง batch แล้ว commit ซ้ำจนหมด
-  Future<void> _pagedBatchDelete(Query<Map<String, dynamic>> baseQuery) async {
-    Query<Map<String, dynamic>> query = baseQuery;
-    while (true) {
-      final snap = await query.get();
-      if (snap.docs.isEmpty) break;
-
-      final batch = fs.batch();
-      for (final d in snap.docs) {
-        batch.delete(d.reference);
-      }
-      await batch.commit();
-
-      // ถ้ามีมากกว่าที่ limit ดึงต่อ (ใช้ startAfterDocument)
-      if (snap.docs.length < (query.parameters['limit'] as int? ?? 200)) break;
-      query = baseQuery.startAfterDocument(snap.docs.last);
     }
   }
 }
@@ -409,6 +717,37 @@ class _InfoTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final IconData icon;
+  final TextInputType? keyboardType;
+
+  const _FormField({
+    required this.label,
+    required this.controller,
+    required this.icon,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          border: const OutlineInputBorder(),
+          filled: true,
+        ),
       ),
     );
   }

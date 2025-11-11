@@ -4,7 +4,8 @@ import '../widgets/bottom_home_bar.dart';
 import 'lost_list_page.dart';
 import 'my_post_page.dart';
 import 'profile_page.dart';
-import 'notification_page.dart';
+// ⬇️ เปลี่ยนจาก notification_page เป็น chat_list_page
+import 'chat_list_page.dart';
 
 class HomeMenuPage extends StatelessWidget {
   const HomeMenuPage({super.key});
@@ -77,17 +78,18 @@ class HomeMenuPage extends StatelessWidget {
                         );
                       },
                     ),
+                    // ⬇️ แท็บใหม่: Chat List
                     _menuCard(
                       context,
-                      icon: Icons.notifications_none_rounded,
+                      icon: Icons.chat_bubble_outline_rounded,
                       iconBg: Colors.redAccent.withOpacity(.12),
                       iconColor: Colors.redAccent,
-                      title: 'Notification',
-                      subtitle: 'Stay updated with item alerts',
+                      title: 'Chat',
+                      subtitle: 'Message with item owners',
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationPage()),
+                          MaterialPageRoute(builder: (_) => const ChatListPage()),
                         );
                       },
                     ),

@@ -138,7 +138,8 @@ class _LostListPageState extends State<LostListPage> {
             itemBuilder: (_, i) {
               if (i < header.length) return header[i];
 
-              final d = docs[i - header.length].data();
+              final doc = docs[i - header.length];   
+              final d = doc.data();
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: _itemCard(
@@ -150,9 +151,9 @@ class _LostListPageState extends State<LostListPage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => ItemDetailPage(data: d)),
+                      MaterialPageRoute(builder: (_) => ItemDetailPage(itemId: doc.id)),
                     );
-                  },
+                  }
                 ),
               );
             },

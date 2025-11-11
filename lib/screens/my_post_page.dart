@@ -189,12 +189,11 @@ class _MyPostPageState extends State<MyPostPage> {
                       ? (d['createdAt'] as Timestamp).toDate()
                       : (d['createdAt'] as DateTime?),
                   onTap: () {
-                    final payload = <String, dynamic>{'id': doc.id, ...d};
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => ItemDetailPage(data: payload)),
-                    );
-                  },
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ItemDetailPage(itemId: doc.id)),
+                      );
+                    },
                   onEdit: editItem,
                   onDelete: deleteItem,
                 ),
