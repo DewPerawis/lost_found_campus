@@ -1,3 +1,4 @@
+// lib/screens/lost_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/bottom_home_bar.dart';
@@ -21,6 +22,23 @@ class _LostListPageState extends State<LostListPage> {
   static const Color pillLost = Color(0xFFFFE7CE);
   static const Color pillFound = Color(0xFFE8F5F2);
 
+  List<BoxShadow> get _softShadow => [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 12,
+          spreadRadius: 4,
+          offset: const Offset(0, 6),
+        ),
+      ];
+
+  List<BoxShadow> get _tinyShadow => [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 6,
+          offset: const Offset(0, 3),
+        ),
+      ];
+
   @override
   void dispose() {
     searchCtrl.dispose();
@@ -36,7 +54,8 @@ class _LostListPageState extends State<LostListPage> {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        elevation: 0,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(.08),
         backgroundColor: bg,
         centerTitle: true,
         title: const Text('LOST ITEM', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -53,22 +72,26 @@ class _LostListPageState extends State<LostListPage> {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: query.snapshots(),
         builder: (context, snap) {
-          // ส่วนหัว: กล่องค้นหา + ชิปกรอง
           final header = [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: TextField(
-                controller: searchCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: 'Search by name or place',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(.9),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+              child: Material(
+                elevation: 2,
+                shadowColor: Colors.black.withOpacity(.06),
+                borderRadius: BorderRadius.circular(16),
+                child: TextField(
+                  controller: searchCtrl,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name or place',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
@@ -107,7 +130,6 @@ class _LostListPageState extends State<LostListPage> {
             );
           }
 
-          // ดึงและกรองข้อมูล
           final s = searchCtrl.text.trim().toLowerCase();
           final docs = snap.data!.docs.where((e) {
             final d = e.data();
@@ -138,7 +160,7 @@ class _LostListPageState extends State<LostListPage> {
             itemBuilder: (_, i) {
               if (i < header.length) return header[i];
 
-              final doc = docs[i - header.length];   
+              final doc = docs[i - header.length];
               final d = doc.data();
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -153,7 +175,7 @@ class _LostListPageState extends State<LostListPage> {
                       context,
                       MaterialPageRoute(builder: (_) => ItemDetailPage(itemId: doc.id)),
                     );
-                  }
+                  },
                 ),
               );
             },
@@ -194,6 +216,7 @@ class _LostListPageState extends State<LostListPage> {
           decoration: BoxDecoration(
             color: isFound ? pillFound : pillLost,
             borderRadius: BorderRadius.circular(999),
+            boxShadow: _tinyShadow,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -210,19 +233,29 @@ class _LostListPageState extends State<LostListPage> {
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Ink(
-        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _softShadow,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: (imageUrl != null && imageUrl.isNotEmpty)
-                    ? Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover)
-                    : Container(
-                        width: 70, height: 70, color: Colors.white,
-                        child: const Icon(Icons.image_not_supported_rounded),
-                      ),
+              Container(
+                decoration: BoxDecoration(
+                  boxShadow: _tinyShadow,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: (imageUrl != null && imageUrl.isNotEmpty)
+                      ? Image.network(imageUrl, width: 96, height: 96, fit: BoxFit.cover)
+                      : Container(
+                          width: 96, height: 96, color: Colors.white,
+                          child: const Icon(Icons.image_not_supported_rounded),
+                        ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -306,7 +339,7 @@ class _LostListPageState extends State<LostListPage> {
     );
   }
 
-    Widget _errorBox(String message) {
+  Widget _errorBox(String message) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       padding: const EdgeInsets.all(20),

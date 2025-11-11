@@ -16,9 +16,12 @@ class AddItemPage extends StatefulWidget {
 }
 
 class _AddItemPageState extends State<AddItemPage> {
-  // โทนสีให้สอดคล้อง
+  // โทนสี
   static const Color _bg = Color(0xFFFFF3D6);
-  static const Color _cardBg = Color(0xFFFFF7EF);
+  static const Color _cardBg = Color(0xFFFFF7EF); // ใช้กับบล็อกหมายเหตุ
+  static const Color _fieldFill = Colors.white;   // กล่องอินพุตให้ขาวชัด
+  static const Color _border = Color.fromARGB(255, 243, 233, 223); // เส้นขอบปกติ
+  static const double _radius = 14;
 
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
@@ -46,7 +49,6 @@ class _AddItemPageState extends State<AddItemPage> {
       final img = d['imageUrl'];
       if (img is String && img.isNotEmpty) _imageUrl = img;
 
-      // ถ้าคุณเคยเก็บ path ภาพไว้ใน doc ด้วย (เช่น 'imagePath') เราจะเอามาใช้ลบไฟล์ได้
       final p = d['imagePath'];
       if (p is String && p.isNotEmpty) _imagePath = p;
     }
@@ -60,15 +62,39 @@ class _AddItemPageState extends State<AddItemPage> {
     super.dispose();
   }
 
+  // เปลือกหุ้มเพื่อเพิ่มเงานุ่มๆ ให้ทุกกล่อง
+  Widget _fieldShell(Widget child) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 2.5,
+      shadowColor: Colors.black.withOpacity(.06),
+      borderRadius: BorderRadius.circular(_radius),
+      child: child,
+    );
+  }
+
+  // Decoration ของอินพุต: ขอบชัด + เปลี่ยนสีเมื่อโฟกัส
   InputDecoration _decor(String hint) => InputDecoration(
         filled: true,
-        fillColor: _cardBg,
+        fillColor: _fieldFill,
         hintText: hint,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+        hintStyle: TextStyle(color: Colors.brown.shade300),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: _border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: BorderSide(color: Colors.brown.shade500, width: 1.7),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.3),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.6),
         ),
       );
 
@@ -86,7 +112,7 @@ class _AddItemPageState extends State<AddItemPage> {
         'place': _placeCtrl.text.trim(),
         'desc': _descCtrl.text.trim(),
         'imageUrl': _imageUrl ?? '',
-        if (_imagePath != null) 'imagePath': _imagePath, // เก็บ path ด้วย ถ้ามี
+        if (_imagePath != null) 'imagePath': _imagePath,
       };
 
       final col = FirebaseFirestore.instance.collection('items');
@@ -131,9 +157,7 @@ class _AddItemPageState extends State<AddItemPage> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) throw Exception('ไม่พบผู้ใช้');
 
-      // ตั้งชื่อไฟล์: ใช้ docId ถ้ามี (แก้ไข), ถ้าไม่มีใช้ timestamp
-      final fileId = widget.docId ??
-          DateTime.now().millisecondsSinceEpoch.toString();
+      final fileId = widget.docId ?? DateTime.now().millisecondsSinceEpoch.toString();
       final path = 'items/$uid/$fileId.jpg';
 
       final ref = FirebaseStorage.instance.ref().child(path);
@@ -141,13 +165,10 @@ class _AddItemPageState extends State<AddItemPage> {
 
       final url = await ref.getDownloadURL();
 
-      // ถ้ามีรูปเดิมและ path เดิม -> ลบทิ้ง (ตอนเปลี่ยนรูป)
       if (_imagePath != null && _imagePath != path) {
         try {
           await FirebaseStorage.instance.ref().child(_imagePath!).delete();
-        } catch (_) {
-          // เงียบๆ ถ้าลบไม่ได้
-        }
+        } catch (_) {}
       }
 
       setState(() {
@@ -172,12 +193,8 @@ class _AddItemPageState extends State<AddItemPage> {
       builder: (_) => AlertDialog(
         title: const Text('ลบรูปภาพนี้?'),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('ยกเลิก')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('ลบ')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
         ],
       ),
     );
@@ -188,7 +205,6 @@ class _AddItemPageState extends State<AddItemPage> {
         await FirebaseStorage.instance.ref().child(_imagePath!).delete();
       }
     } catch (_) {
-      // ignore
     } finally {
       setState(() {
         _imageUrl = null;
@@ -207,8 +223,7 @@ class _AddItemPageState extends State<AddItemPage> {
         elevation: 0,
         backgroundColor: _bg,
         centerTitle: true,
-        title:
-            Text(titleText, style: const TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(titleText, style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
       body: Stack(
         children: [
@@ -218,11 +233,17 @@ class _AddItemPageState extends State<AddItemPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  // การ์ดรูปภาพ + ปุ่ม
+                  // การ์ดรูปภาพ + ปุ่ม (ยกเงา + ขอบชัด)
                   Material(
-                    color: _cardBg,
+                    color: Colors.white,
+                    elevation: 3.5,
+                    shadowColor: Colors.black.withOpacity(.08),
                     borderRadius: BorderRadius.circular(16),
-                    child: Padding(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _border, width: 1.2),
+                      ),
                       padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,13 +251,11 @@ class _AddItemPageState extends State<AddItemPage> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: (_imageUrl != null && _imageUrl!.isNotEmpty)
-                                ? Image.network(_imageUrl!,
-                                    height: 180, fit: BoxFit.cover)
+                                ? Image.network(_imageUrl!, height: 190, fit: BoxFit.cover)
                                 : Container(
-                                    height: 180,
-                                    color: Colors.white,
-                                    child: const Icon(Icons.image_rounded,
-                                        size: 48),
+                                    height: 190,
+                                    color: Colors.grey.shade100,
+                                    child: Icon(Icons.image_rounded, size: 48, color: Colors.brown.shade300),
                                   ),
                           ),
                           const SizedBox(height: 12),
@@ -245,19 +264,14 @@ class _AddItemPageState extends State<AddItemPage> {
                               FilledButton.icon(
                                 onPressed: _isUploadingImage ? null : _pickImage,
                                 icon: const Icon(Icons.image_rounded),
-                                label: Text(_isUploadingImage
-                                    ? 'กำลังอัปโหลด...'
-                                    : 'เปลี่ยนรูป'),
+                                label: Text(_isUploadingImage ? 'กำลังอัปโหลด...' : 'เปลี่ยนรูป'),
                               ),
                               const SizedBox(width: 12),
                               TextButton.icon(
-                                onPressed: (_imageUrl == null ||
-                                        _imageUrl!.isEmpty ||
-                                        _isUploadingImage)
+                                onPressed: (_imageUrl == null || _imageUrl!.isEmpty || _isUploadingImage)
                                     ? null
                                     : _removeImage,
-                                icon:
-                                    const Icon(Icons.delete_outline_rounded),
+                                icon: const Icon(Icons.delete_outline_rounded),
                                 label: const Text('ลบรูป'),
                               ),
                             ],
@@ -268,57 +282,72 @@ class _AddItemPageState extends State<AddItemPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  TextFormField(
-                    controller: _titleCtrl,
-                    decoration: _decor('ชื่อไอเท็ม'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'กรุณากรอกชื่อไอเท็ม' : null,
+                  // ชื่อไอเท็ม
+                  _fieldShell(
+                    TextFormField(
+                      controller: _titleCtrl,
+                      decoration: _decor('ชื่อไอเท็ม'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'กรุณากรอกชื่อไอเท็ม' : null,
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  DropdownButtonFormField<String>(
-                    value: _status,
-                    decoration: _decor('สถานะ'),
-                    items: const [
-                      DropdownMenuItem(value: 'lost', child: Text('lost')),
-                      DropdownMenuItem(value: 'found', child: Text('found')),
-                    ],
-                    onChanged: (v) => setState(() => _status = v ?? 'lost'),
+                  // สถานะ
+                  _fieldShell(
+                    DropdownButtonFormField<String>(
+                      value: _status,
+                      decoration: _decor('สถานะ'),
+                      items: const [
+                        DropdownMenuItem(value: 'lost', child: Text('lost')),
+                        DropdownMenuItem(value: 'found', child: Text('found')),
+                      ],
+                      onChanged: (v) => setState(() => _status = v ?? 'lost'),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  TextFormField(
-                    controller: _placeCtrl,
-                    decoration: _decor('สถานที่'),
+                  // สถานที่
+                  _fieldShell(
+                    TextFormField(
+                      controller: _placeCtrl,
+                      decoration: _decor('สถานที่'),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  TextFormField(
-                    controller: _descCtrl,
-                    decoration: _decor('รายละเอียดเพิ่มเติม'),
-                    maxLines: 4,
+                  // รายละเอียด
+                  _fieldShell(
+                    TextFormField(
+                      controller: _descCtrl,
+                      decoration: _decor('รายละเอียดเพิ่มเติม'),
+                      maxLines: 4,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
+                  // ปุ่มบันทึกให้เด่นขึ้น
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: (_isSaving || _isUploadingImage) ? null : _save,
-                      child: Padding(
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Text(_isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'),
+                        elevation: 2,
+                        shadowColor: Colors.black.withOpacity(.12),
                       ),
+                      onPressed: (_isSaving || _isUploadingImage) ? null : _save,
+                      child: Text(_isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
 
+                  // หมายเหตุ
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.only(top: 6),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _cardBg,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _border, width: 1),
                     ),
                     child: const Text(
                       'หมายเหตุ: คำสั่งอาจรอคิว ใช้เมนู : ที่หน้า My Post',

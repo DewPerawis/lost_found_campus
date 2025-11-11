@@ -75,7 +75,6 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                       );
                     },
-
                   child: CircleAvatar(
                     radius: 18,
                     backgroundColor: Colors.brown.shade200,
@@ -147,7 +146,7 @@ class _ChatPageState extends State<ChatPage> {
                             margin: const EdgeInsets.symmetric(vertical: 4),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: isMe ? Colors.green.shade200 : const Color(0xFFFFF7EF),
+                              color: isMe ?  const Color.fromARGB(255, 252, 211, 173) : const Color.fromARGB(255, 255, 255, 255),
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(14),
                                 topRight: const Radius.circular(14),
@@ -166,12 +165,12 @@ class _ChatPageState extends State<ChatPage> {
                                   children: [
                                     if (createdAt != null)
                                       Text(_fmtTime(createdAt),
-                                          style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                                          style: const TextStyle(fontSize: 10, color: Color.fromARGB(136, 49, 47, 47))),
                                     const SizedBox(width: 6),
                                     if (isMe)
                                       Text(
                                         readBy.contains(widget.otherUid) ? 'อ่านแล้ว' : 'ส่งแล้ว',
-                                        style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                        style: const TextStyle(fontSize: 10, color: Color.fromARGB(136, 49, 47, 47)),
                                       ),
                                   ],
                                 ),
@@ -198,7 +197,7 @@ class _ChatPageState extends State<ChatPage> {
                           decoration: InputDecoration(
                             hintText: 'พิมพ์ข้อความ...',
                             filled: true,
-                            fillColor: const Color(0xFFFFF7EF),
+                            fillColor: const Color.fromARGB(255, 255, 255, 255),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),

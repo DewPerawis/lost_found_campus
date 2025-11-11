@@ -4,7 +4,6 @@ import '../widgets/bottom_home_bar.dart';
 import 'lost_list_page.dart';
 import 'my_post_page.dart';
 import 'profile_page.dart';
-// ⬇️ เปลี่ยนจาก notification_page เป็น chat_list_page
 import 'chat_list_page.dart';
 
 class HomeMenuPage extends StatelessWidget {
@@ -128,6 +127,7 @@ class HomeMenuPage extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Card(
+      color: const Color.fromARGB(255, 255, 251, 247),
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

@@ -1,9 +1,12 @@
+// lib/screens/chat_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme.dart';
 import 'chat_page.dart';
 import '../services/chat_service.dart';
+// ⬇️ เพิ่มบรรทัดนี้เพื่อใช้แท็บ Home
+import '../widgets/bottom_home_bar.dart';
 
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
@@ -15,7 +18,7 @@ class ChatListPage extends StatelessWidget {
     if (d.inMinutes < 60) return '${d.inMinutes}m ago';
     if (d.inHours < 24) return '${d.inHours}h ago';
     return '${d.inDays}d ago';
-    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +30,14 @@ class ChatListPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(title: const Text('Chats')),
+      appBar: AppBar(
+        title: const Text('Chats'),
+        centerTitle: true,
+        backgroundColor: AppTheme.cream,
+        elevation: 0,
+      ),
+      // ⬇️ ใส่แท็บปุ่ม Home ด้านล่าง
+      bottomNavigationBar: const BottomHomeBar(),
       body: StreamBuilder<QuerySnapshot>(
         stream: q.snapshots(),
         builder: (context, snap) {
@@ -86,7 +96,10 @@ class ChatListPage extends StatelessWidget {
                           title: const Text('ลบห้องแชทนี้?'),
                           content: const Text('ข้อความทั้งหมดจะถูกลบถาวรสำหรับทั้งสองฝ่าย'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('ยกเลิก'),
+                            ),
                             FilledButton(
                               style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                               onPressed: () => Navigator.pop(context, true),
@@ -98,28 +111,36 @@ class ChatListPage extends StatelessWidget {
                       if (ok == true) {
                         await ChatService.deleteChat(chatId);
                       }
-                      return false; // ไม่ให้ลบใน UI โดยอัตโนมัติ ให้สตรีมเป็นคนรีเฟรช
+                      // ไม่ให้ Dismiss ออกจากจอทันที ให้รอสตรีมอัปเดตแทน
+                      return false;
                     },
                     child: ListTile(
-                      tileColor: const Color(0xFFFFF7EF),
+                      tileColor: const Color.fromARGB(255, 255, 254, 252),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       leading: CircleAvatar(
                         radius: 22,
                         backgroundColor: Colors.brown.shade200,
                         backgroundImage: photo != null ? NetworkImage(photo) : null,
                         child: photo == null
-                            ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: const TextStyle(fontWeight: FontWeight.w700))
+                            ? Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              )
                             : null,
                       ),
                       title: Row(
                         children: [
                           Expanded(
-                            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            child: Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          Text(_timeAgo(lastAt),
-                              style: TextStyle(fontSize: 12, color: Colors.brown.shade400)),
+                          Text(
+                            _timeAgo(lastAt),
+                            style: TextStyle(fontSize: 12, color: Colors.brown.shade400),
+                          ),
                         ],
                       ),
                       subtitle: Text(
@@ -138,9 +159,11 @@ class ChatListPage extends StatelessWidget {
                             )
                           : const SizedBox.shrink(),
                       onTap: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => ChatPage(chatId: chatId, otherUid: otherUid),
-                        ));
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ChatPage(chatId: chatId, otherUid: otherUid),
+                          ),
+                        );
                       },
                     ),
                   );
