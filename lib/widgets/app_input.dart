@@ -5,7 +5,8 @@ class AppInput extends StatelessWidget {
   final String hint;
   final bool obscure;
   final TextInputType? type;
-  final int maxLines; // ✅ เพิ่มพารามิเตอร์นี้
+  final int maxLines;
+  final Widget? suffix; // ✅ เพิ่ม
 
   const AppInput({
     super.key,
@@ -13,7 +14,8 @@ class AppInput extends StatelessWidget {
     required this.hint,
     this.obscure = false,
     this.type,
-    this.maxLines = 1, // ✅ ตั้งค่าเริ่มต้นเป็น 1 (single line)
+    this.maxLines = 1,
+    this.suffix, // ✅ เพิ่ม
   });
 
   @override
@@ -22,13 +24,14 @@ class AppInput extends StatelessWidget {
       controller: controller,
       obscureText: obscure,
       keyboardType: type,
-      maxLines: obscure ? 1 : maxLines, // ✅ ถ้าเป็น password บังคับให้ 1 line
+      maxLines: obscure ? 1 : maxLines,
       decoration: InputDecoration(
         hintText: hint,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        suffixIcon: suffix, // ✅ เพิ่ม
       ),
     );
   }

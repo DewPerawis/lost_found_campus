@@ -40,7 +40,7 @@ class HomeMenuPage extends StatelessWidget {
                       icon: Icons.search,
                       iconBg: cs.secondary.withOpacity(.15),
                       iconColor: Colors.orange.shade700,
-                      title: 'Lost Item',
+                      title: 'Lost & Found Item',
                       subtitle: "Report an item you've lost",
                       onTap: () {
                         Navigator.push(

@@ -1,276 +1,342 @@
+// lib/screens/add_item_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/app_button.dart';
-import '../widgets/app_input.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class AddItemPage extends StatefulWidget {
-  const AddItemPage({
-    super.key,
-    this.docId,
-    this.initialData,
-  });
-
-  /// ถ้ามี docId = โหมดแก้ไข
-  final String? docId;
-  final Map<String, dynamic>? initialData;
+  final String? docId;                       // ถ้าแก้ไขจะมี docId
+  final Map<String, dynamic>? initialData;   // ข้อมูลเดิม (จาก MyPostPage)
+  const AddItemPage({super.key, this.docId, this.initialData});
 
   @override
   State<AddItemPage> createState() => _AddItemPageState();
 }
 
 class _AddItemPageState extends State<AddItemPage> {
-  final title = TextEditingController();
-  final place = TextEditingController();
-  final desc  = TextEditingController();
-  final status = ValueNotifier<String>('found');
+  // โทนสีให้สอดคล้อง
+  static const Color _bg = Color(0xFFFFF3D6);
+  static const Color _cardBg = Color(0xFFFFF7EF);
 
-  File? selectedImageFile;      // รูปใหม่ที่เลือก (ถ้ามี)
-  String? imageUrl;             // URL ปัจจุบันในเอกสาร (ถ้ามี)
-  bool markRemoveImage = false; // โหมดแก้ไข: ถ้ากดลบรูป
+  final _formKey = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _placeCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
 
-  bool loading = false;
-  bool get isEdit => widget.docId != null;
+  String _status = 'lost';            // 'lost' | 'found'
+  String? _imageUrl;                  // downloadURL บน Storage
+  String? _imagePath;                 // path บน Storage (เผื่อลบ)
+
+  bool _isSaving = false;
+  bool _isUploadingImage = false;
+
+  bool get _isEdit => widget.docId != null;
 
   @override
   void initState() {
     super.initState();
-    if (isEdit && widget.initialData != null) {
-      final d = widget.initialData!;
-      title.text  = (d['title'] ?? '') as String;
-      place.text  = (d['place'] ?? '') as String;
-      desc.text   = (d['desc']  ?? '') as String;   // ใช้คีย์ 'desc'
-      status.value = (d['status'] ?? 'found') as String;
-      imageUrl    = d['imageUrl'] as String?;
+    final d = widget.initialData;
+    if (d != null) {
+      _titleCtrl.text = (d['title'] ?? '').toString();
+      _placeCtrl.text = (d['place'] ?? '').toString();
+      _descCtrl.text = (d['desc'] ?? '').toString();
+      _status = (d['status'] ?? 'lost').toString().toLowerCase();
+      final img = d['imageUrl'];
+      if (img is String && img.isNotEmpty) _imageUrl = img;
+
+      // ถ้าคุณเคยเก็บ path ภาพไว้ใน doc ด้วย (เช่น 'imagePath') เราจะเอามาใช้ลบไฟล์ได้
+      final p = d['imagePath'];
+      if (p is String && p.isNotEmpty) _imagePath = p;
     }
   }
 
   @override
   void dispose() {
-    title.dispose();
-    place.dispose();
-    desc.dispose();
-    status.dispose();
+    _titleCtrl.dispose();
+    _placeCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> pickImage() async {
-    final x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (x == null) return;
-    setState(() {
-      selectedImageFile = File(x.path);
-      markRemoveImage = false; // เลือกใหม่ = ไม่ถือว่าลบแล้ว
-    });
-  }
+  InputDecoration _decor(String hint) => InputDecoration(
+        filled: true,
+        fillColor: _cardBg,
+        hintText: hint,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      );
 
-  Future<String> _uploadImage(String docId) async {
-    final storage = FirebaseStorage.instance; 
-    final ref = storage.ref().child('items/$docId/main.jpg');
-    await ref.putFile(
-      selectedImageFile!,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    final url = await ref.getDownloadURL();
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    return url;
-  }
-
-  /// ลบรูปปัจจุบันใน Storage (ถ้าเป็นลิงก์ Storage จริง)
-  Future<void> _deleteStorageImageIfAny() async {
-    if (imageUrl != null &&
-        imageUrl!.startsWith('https://firebasestorage.googleapis.com')) {
-      try {
-        await FirebaseStorage.instance.refFromURL(imageUrl!).delete();
-      } catch (_) {/* เงียบไว้ */}
-    }
-  }
-
-  void _removeImageTapped() {
-    setState(() {
-      selectedImageFile = null;
-      if (isEdit) markRemoveImage = true;
-      imageUrl = null;
-    });
-  }
-
-  Future<void> submit() async {
-    if (loading) return;
-    FocusScope.of(context).unfocus();
-
-    if (title.text.trim().isEmpty) {
-      _toast('กรุณาใส่ชื่อรายการ');
-      return;
-    }
-
-    setState(() => loading = true);
+    setState(() => _isSaving = true);
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw Exception('กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+
+      final data = <String, dynamic>{
+        'title': _titleCtrl.text.trim(),
+        'status': _status,
+        'place': _placeCtrl.text.trim(),
+        'desc': _descCtrl.text.trim(),
+        'imageUrl': _imageUrl ?? '',
+        if (_imagePath != null) 'imagePath': _imagePath, // เก็บ path ด้วย ถ้ามี
+      };
+
       final col = FirebaseFirestore.instance.collection('items');
 
-      if (isEdit) {
-        // ---------- โหมดแก้ไข ----------
-        final docId = widget.docId!;
-        String? newUrl = imageUrl;
-
-        if (markRemoveImage) {
-          await _deleteStorageImageIfAny();
-          newUrl = null;
+      if (_isEdit) {
+        await col.doc(widget.docId).update(data);
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('บันทึกการแก้ไขแล้ว')));
         }
-        if (selectedImageFile != null) {
-          newUrl = await _uploadImage(docId); // เอกสารมีแล้ว → ผ่าน rules
-        }
-
-        await col.doc(docId).update({
-          'title'    : title.text.trim(),
-          'place'    : place.text.trim(),
-          'desc'     : desc.text.trim(),
-          'status'   : status.value,
-          'imageUrl' : newUrl,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        _toast('บันทึกการแก้ไขแล้ว');
-
       } else {
-        // ---------- โหมดสร้าง ----------
-        final uid = FirebaseAuth.instance.currentUser!.uid;
-
-        // 1) สร้างเอกสารก่อน (ตามกติกา Storage ต้องมี doc ก่อน)
-        final docRef = col.doc();
-        print('🧾 create doc id = ${docRef.id}, uid = $uid');
-        await docRef.set({
-          'title'    : title.text.trim(),
-          'place'    : place.text.trim(),
-          'desc'     : desc.text.trim(),
-          'status'   : status.value,
-          'imageUrl' : null,
-          'ownerUid' : uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        final snap = await docRef.get();
-        print('🧾 ownerUid in Firestore = ${snap.data()?['ownerUid']}');
-
-        // 2) อัปโหลดรูป (ถ้ามี) → แล้วค่อยอัปเดต imageUrl
-        if (selectedImageFile != null) {
-          try {
-            final newUrl = await _uploadImage(docRef.id);
-            await docRef.update({'imageUrl': newUrl});
-          } on FirebaseException catch (e) {
-            // ถ้าอัปโหลดภาพไม่ได้ ให้โพสต์ข้อความไปก่อน แต่แจ้งสาเหตุชัดเจน
-            _toast('อัปโหลดรูปไม่สำเร็จ: ${e.message ?? 'permission denied'}');
-          }
+        data['ownerUid'] = uid;
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await col.add(data);
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('สร้างโพสต์แล้ว')));
         }
-
-        _toast('เพิ่มโพสต์แล้ว');
       }
 
       if (mounted) Navigator.pop(context);
-
-    } on FirebaseException catch (e) {
-      _toast(e.message ?? 'ไม่สามารถบันทึกได้');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  void _toast(String m) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  // ==== เลือกรูปจากเครื่อง + อัปโหลดขึ้น Firebase Storage ====
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? picked =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 88);
+    if (picked == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw Exception('ไม่พบผู้ใช้');
+
+      // ตั้งชื่อไฟล์: ใช้ docId ถ้ามี (แก้ไข), ถ้าไม่มีใช้ timestamp
+      final fileId = widget.docId ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      final path = 'items/$uid/$fileId.jpg';
+
+      final ref = FirebaseStorage.instance.ref().child(path);
+      await ref.putFile(File(picked.path));
+
+      final url = await ref.getDownloadURL();
+
+      // ถ้ามีรูปเดิมและ path เดิม -> ลบทิ้ง (ตอนเปลี่ยนรูป)
+      if (_imagePath != null && _imagePath != path) {
+        try {
+          await FirebaseStorage.instance.ref().child(_imagePath!).delete();
+        } catch (_) {
+          // เงียบๆ ถ้าลบไม่ได้
+        }
+      }
+
+      setState(() {
+        _imageUrl = url;
+        _imagePath = path;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  // ลบรูป (พร้อมลบไฟล์ใน Storage ถ้ารู้ path)
+  Future<void> _removeImage() async {
+    if (_imageUrl == null || _imageUrl!.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('ลบรูปภาพนี้?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('ยกเลิก')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('ลบ')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      if (_imagePath != null && _imagePath!.isNotEmpty) {
+        await FirebaseStorage.instance.ref().child(_imagePath!).delete();
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      setState(() {
+        _imageUrl = null;
+        _imagePath = null;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final imgWidget = Builder(
-      builder: (_) {
-        if (selectedImageFile != null) {
-          return Image.file(selectedImageFile!, height: 180, fit: BoxFit.cover);
-        }
-        if (imageUrl != null && imageUrl!.isNotEmpty) {
-          return Image.network(imageUrl!, height: 180, fit: BoxFit.cover);
-        }
-        return Container(
-          height: 180,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFEFEF),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.image, size: 48),
-        );
-      },
-    );
+    final titleText = _isEdit ? 'EDIT ITEM' : 'ADD ITEM';
 
     return Scaffold(
+      backgroundColor: _bg,
       appBar: AppBar(
-        leading: const BackButton(),
-        title: Text(isEdit ? 'EDIT ITEM' : 'ADD ITEM'),
+        elevation: 0,
+        backgroundColor: _bg,
+        centerTitle: true,
+        title:
+            Text(titleText, style: const TextStyle(fontWeight: FontWeight.w800)),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            imgWidget,
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: pickImage,
-                  icon: const Icon(Icons.photo),
-                  label: Text(isEdit ? 'เปลี่ยนรูป' : 'เลือกรูป'),
-                ),
-                const SizedBox(width: 8),
-                if (imageUrl != null || selectedImageFile != null)
-                  TextButton.icon(
-                    onPressed: _removeImageTapped,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('ลบรูป'),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  // การ์ดรูปภาพ + ปุ่ม
+                  Material(
+                    color: _cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: (_imageUrl != null && _imageUrl!.isNotEmpty)
+                                ? Image.network(_imageUrl!,
+                                    height: 180, fit: BoxFit.cover)
+                                : Container(
+                                    height: 180,
+                                    color: Colors.white,
+                                    child: const Icon(Icons.image_rounded,
+                                        size: 48),
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              FilledButton.icon(
+                                onPressed: _isUploadingImage ? null : _pickImage,
+                                icon: const Icon(Icons.image_rounded),
+                                label: Text(_isUploadingImage
+                                    ? 'กำลังอัปโหลด...'
+                                    : 'เปลี่ยนรูป'),
+                              ),
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                onPressed: (_imageUrl == null ||
+                                        _imageUrl!.isEmpty ||
+                                        _isUploadingImage)
+                                    ? null
+                                    : _removeImage,
+                                icon:
+                                    const Icon(Icons.delete_outline_rounded),
+                                label: const Text('ลบรูป'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-            AppInput(controller: title, hint: 'Title'),
-            const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _titleCtrl,
+                    decoration: _decor('ชื่อไอเท็ม'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'กรุณากรอกชื่อไอเท็ม' : null,
+                  ),
+                  const SizedBox(height: 12),
 
-            // สถานะ
-            ValueListenableBuilder<String>(
-              valueListenable: status,
-              builder: (_, v, __) => DropdownButtonFormField<String>(
-                value: v,
-                items: const [
-                  DropdownMenuItem(value: 'lost',  child: Text('lost')),
-                  DropdownMenuItem(value: 'found', child: Text('found')),
+                  DropdownButtonFormField<String>(
+                    value: _status,
+                    decoration: _decor('สถานะ'),
+                    items: const [
+                      DropdownMenuItem(value: 'lost', child: Text('lost')),
+                      DropdownMenuItem(value: 'found', child: Text('found')),
+                    ],
+                    onChanged: (v) => setState(() => _status = v ?? 'lost'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  TextFormField(
+                    controller: _placeCtrl,
+                    decoration: _decor('สถานที่'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  TextFormField(
+                    controller: _descCtrl,
+                    decoration: _decor('รายละเอียดเพิ่มเติม'),
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: (_isSaving || _isUploadingImage) ? null : _save,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: Text(_isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'หมายเหตุ: คำสั่งอาจรอคิว ใช้เมนู : ที่หน้า My Post',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ],
-                onChanged: (x) => status.value = x ?? 'found',
-                decoration: const InputDecoration(hintText: 'Status'),
               ),
             ),
-            const SizedBox(height: 12),
+          ),
 
-            AppInput(controller: place, hint: 'Place'),
-            const SizedBox(height: 12),
-            AppInput(controller: desc, hint: 'Description', maxLines: 3),
-            const SizedBox(height: 24),
-
-            loading
-                ? const Center(child: CircularProgressIndicator())
-                : AppButton(
-                    text: isEdit ? 'บันทึกการแก้ไข' : 'โพสต์',
-                    onPressed: submit,
-                  ),
-
-            if (isEdit)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'หมายเหตุ: ถ้าต้องการลบ ใช้เมนู ⋮ ที่หน้า My Post',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-          ],
-        ),
+          if (_isSaving || _isUploadingImage)
+            Container(
+              color: Colors.black.withOpacity(0.2),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }
