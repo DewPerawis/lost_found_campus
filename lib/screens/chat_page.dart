@@ -54,7 +54,7 @@ class _ChatPageState extends State<ChatPage> {
         .collection('messages')
         .orderBy('createdAt', descending: true);
 
-    return StreamBuilder<Map<String, dynamic>?>(
+    return StreamBuilder<Map<String, dynamic>?>( 
       stream: ChatService.otherUserStream(widget.otherUid),
       builder: (context, userSnap) {
         final u = userSnap.data;
@@ -93,19 +93,19 @@ class _ChatPageState extends State<ChatPage> {
             ),
             actions: [
               IconButton(
-                tooltip: 'ลบห้องแชท',
+                tooltip: 'Delete chat',
                 onPressed: () async {
                   final ok = await showDialog<bool>(
                     context: context,
                     builder: (_) => AlertDialog(
-                      title: const Text('ลบห้องแชทนี้?'),
-                      content: const Text('ข้อความทั้งหมดจะถูกลบถาวรสำหรับทั้งสองฝ่าย'),
+                      title: const Text('Delete this chat?'),
+                      content: const Text('All messages will be permanently deleted for both participants'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
                         FilledButton(
                           style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('ลบ'),
+                          child: const Text('Delete'),
                         ),
                       ],
                     ),
@@ -169,7 +169,7 @@ class _ChatPageState extends State<ChatPage> {
                                     const SizedBox(width: 6),
                                     if (isMe)
                                       Text(
-                                        readBy.contains(widget.otherUid) ? 'อ่านแล้ว' : 'ส่งแล้ว',
+                                        readBy.contains(widget.otherUid) ? 'Read' : 'Sent',
                                         style: const TextStyle(fontSize: 10, color: Color.fromARGB(136, 49, 47, 47)),
                                       ),
                                   ],
@@ -195,7 +195,7 @@ class _ChatPageState extends State<ChatPage> {
                           minLines: 1,
                           maxLines: 5,
                           decoration: InputDecoration(
-                            hintText: 'พิมพ์ข้อความ...',
+                            hintText: 'Type a message...',
                             filled: true,
                             fillColor: const Color.fromARGB(255, 255, 255, 255),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

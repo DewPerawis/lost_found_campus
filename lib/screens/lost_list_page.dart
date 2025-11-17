@@ -318,12 +318,12 @@ class _LostListPageState extends State<LostListPage> {
       child: Column(
         children: [
           Text(
-            'ไม่พบรายการตามเงื่อนไข',
+            'No items match your criteria',
             style: TextStyle(fontWeight: FontWeight.w800, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 12),
           Text(
-            'ลองปรับคำค้นหรือสลับฟิลเตอร์',
+            'Try adjusting your search or switching filters',
             style: TextStyle(color: Colors.grey.shade700),
           ),
           const SizedBox(height: 16),

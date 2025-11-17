@@ -33,11 +33,11 @@ class ItemDetailPage extends StatelessWidget {
           final desc     = (data['description'] ?? data['desc'] ?? '-') as String;
           final status   = ((data['status'] ?? 'lost') as String).toLowerCase();
           final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-          final imageUrl = (data['imageUrl'] ?? '') as String?; // รูปของ item (ถ้ามี)
+          final imageUrl = (data['imageUrl'] ?? '') as String?; // item image (if any)
 
           final me = FirebaseAuth.instance.currentUser?.uid;
 
-          // โหลดชื่อเจ้าของจาก users/{uid}.displayName (fallback: 'Unknown user')
+          // Load owner name from users/{uid}.displayName (fallback: 'Unknown user')
           final ownerFuture = FirebaseFirestore.instance.collection('users').doc(ownerUid).get();
 
           Color pillBg() =>
@@ -55,7 +55,7 @@ class ItemDetailPage extends StatelessWidget {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 children: [
-                  // ===== รูปบนสุด =====
+                  // ===== Top image =====
                   ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     child: AspectRatio(
@@ -73,7 +73,7 @@ class ItemDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // ===== การ์ดข้อมูลชื่อ/สถานะ/สถานที่/เวลา =====
+                  // ===== Card: name / status / place / date =====
                   Card(
                     elevation: 3,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -84,7 +84,7 @@ class ItemDetailPage extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              // สถานะ
+                              // Status pill
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
@@ -136,7 +136,7 @@ class ItemDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // ===== การ์ด Description =====
+                  // ===== Description card =====
                   Card(
                     elevation: 3,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -156,7 +156,7 @@ class ItemDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // ===== การ์ด Owner + ปุ่มแชท =====
+                  // ===== Owner card + Chat button =====
                   Card(
                     elevation: 3,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -183,7 +183,7 @@ class ItemDetailPage extends StatelessWidget {
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 icon: const Icon(Icons.chat_bubble_outline_rounded),
-                                label: const Text('แชทกับเจ้าของ'),
+                                label: const Text('Chat with owner'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
@@ -200,7 +200,7 @@ class ItemDetailPage extends StatelessWidget {
                                     Navigator.of(context).push(MaterialPageRoute(
                                       builder: (_) => ChatPage(
                                         chatId: chatId,
-                                        otherUid: ownerUid, // ภายหลังค่อย map เป็นชื่อ
+                                        otherUid: ownerUid, // display name mapping handled elsewhere
                                       ),
                                     ));
                                   }
@@ -208,7 +208,7 @@ class ItemDetailPage extends StatelessWidget {
                               ),
                             )
                           else
-                            const Text('คุณเป็นเจ้าของโพสต์นี้',
+                            const Text('You are the owner of this post',
                                 style: TextStyle(fontWeight: FontWeight.w600)),
                         ],
                       ),

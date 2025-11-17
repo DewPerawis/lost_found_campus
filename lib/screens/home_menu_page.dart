@@ -77,7 +77,7 @@ class HomeMenuPage extends StatelessWidget {
                         );
                       },
                     ),
-                    // ⬇️ แท็บใหม่: Chat List
+                    // ⬇️ New tab: Chat List
                     _menuCard(
                       context,
                       icon: Icons.chat_bubble_outline_rounded,

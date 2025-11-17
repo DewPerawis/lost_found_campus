@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // ใช้ลบรูปที่แนบใน items (ยังจำเป็น)
+import 'package:firebase_storage/firebase_storage.dart'; // used to delete attached images in items (still needed)
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -19,19 +19,19 @@ class _ProfilePageState extends State<ProfilePage> {
   bool working = false;
   User? get user => auth.currentUser;
 
-  // ====== ตัวเลือกที่ให้มา ======
+  // ====== Options provided ======
   static const List<String> faculties = [
-    'ไม่ระบุ','Other','SI','RA','BM','PY','DT','NS','MT','PH','PT','VS','TM','SC','EN','LA','SH','EG','ICT','CRS','SS','RS'
+    'Not Specified','Other','SI','RA','BM','PY','DT','NS','MT','PH','PT','VS','TM','SC','EN','LA','SH','EG','ICT','CRS','SS','RS'
   ];
-  static const List<String> roles = ['ไม่ระบุ','Student','Teacher','Staff','Other'];
+  static const List<String> roles = ['Not Specified','Student','Teacher','Staff','Other'];
 
-  // ====== Controllers ฟอร์มแก้ไข (ไม่มี email แล้ว) ======
+  // ====== Controllers for edit form (email is read-only) ======
   final _nameCtrl = TextEditingController();
   final _contactCtrl = TextEditingController();
   String _selectedFaculty = faculties.first;
   String _selectedRole = roles.first;
 
-  // เก็บ snapshot ล่าสุดไว้ ใช้ตอนเปิดชีต (หลีกเลี่ยงแก้ state ระหว่าง build)
+  // store latest snapshot for use when opening sheets (avoid changing state during build)
   Map<String, dynamic> _lastUserData = const {};
 
   @override
@@ -44,13 +44,13 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  // เติมค่าให้คอนโทรล/ดรอปดาวน์จาก data (เรียกตอนจะเปิดชีตเท่านั้น)
+  // populate controllers/dropdowns from data (call before opening sheet only)
   void _hydrateFrom(Map<String, dynamic> data) {
     _nameCtrl.text = (data['name'] ?? '').toString();
     _contactCtrl.text = (data['contact'] ?? '').toString();
 
-    final fac = (data['faculty'] ?? 'ไม่ระบุ').toString();
-    final role = (data['role'] ?? 'ไม่ระบุ').toString();
+    final fac = (data['faculty'] ?? 'Not Specified').toString();
+    final role = (data['role'] ?? 'Not Specified').toString();
     _selectedFaculty = _ensureInList(fac, faculties);
     _selectedRole = _ensureInList(role, roles);
   }
@@ -58,7 +58,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _ensureInList(String value, List<String> list) {
     if (value.isEmpty) return list.first;
     if (list.contains(value)) return value;
-    return list.first; // กันค่าแปลกจากฐานข้อมูล
+    return list.first; // guard against unexpected values from database
   }
 
   Future<void> _saveProfile() async {
@@ -74,7 +74,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       await fs.collection('users').doc(uid).set({
         'name': newName,
-        'email': user!.email ?? '', // email อ่านอย่างเดียว
+        'email': user!.email ?? '', // email is read-only
         'contact': newContact,
         'faculty': newFaculty,
         'role': newRole,
@@ -82,19 +82,19 @@ class _ProfilePageState extends State<ProfilePage> {
       }, SetOptions(merge: true));
 
       if (!mounted) return;
-      Navigator.of(context).pop(); // ปิดชีตแก้ไข
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บันทึกโปรไฟล์แล้ว')));
+      Navigator.of(context).pop(); // close edit sheet
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('An error occurred: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => working = false);
     }
   }
 
-  // ====== เปลี่ยนรหัสผ่าน ======
+  // ====== Change password ======
   final _oldPwdCtrl = TextEditingController();
   final _newPwdCtrl = TextEditingController();
   final _newPwd2Ctrl = TextEditingController();
@@ -125,14 +125,14 @@ class _ProfilePageState extends State<ProfilePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('เปลี่ยนรหัสผ่าน', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const Text('Change password', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
 
                 TextField(
                   controller: _oldPwdCtrl,
                   obscureText: !_showOld,
                   decoration: InputDecoration(
-                    labelText: 'รหัสผ่านเดิม',
+                    labelText: 'Current password',
                     prefixIcon: const Icon(Icons.lock_clock_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(_showOld ? Icons.visibility_off : Icons.visibility),
@@ -147,7 +147,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   controller: _newPwdCtrl,
                   obscureText: !_showNew,
                   decoration: InputDecoration(
-                    labelText: 'รหัสผ่านใหม่',
+                    labelText: 'New password',
                     prefixIcon: const Icon(Icons.lock_reset_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(_showNew ? Icons.visibility_off : Icons.visibility),
@@ -162,7 +162,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   controller: _newPwd2Ctrl,
                   obscureText: !_showNew2,
                   decoration: InputDecoration(
-                    labelText: 'ยืนยันรหัสผ่านใหม่',
+                    labelText: 'Confirm new password',
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(_showNew2 ? Icons.visibility_off : Icons.visibility),
@@ -177,7 +177,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 FilledButton.icon(
                   onPressed: working ? null : () => _handleChangePassword(sheetContext: ctx),
                   icon: const Icon(Icons.save_rounded),
-                  label: const Text('บันทึกรหัสผ่านใหม่'),
+                  label: const Text('Save new password'),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -191,7 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _handleChangePassword({required BuildContext sheetContext}) async {
     if (user == null) return;
 
-    // ปิดฟอร์มทันทีตามที่ต้องการ
+    // close sheet immediately
     Navigator.of(sheetContext).pop();
 
     final mail   = user!.email ?? '';
@@ -199,56 +199,56 @@ class _ProfilePageState extends State<ProfilePage> {
     final newPwd1 = _newPwdCtrl.text;
     final newPwd2 = _newPwd2Ctrl.text;
 
-    // เช็กกรอกครบ
+    // check fields
     if (oldPwd.isEmpty || newPwd1.isEmpty || newPwd2.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบทุกช่อง')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // เช็กรหัสใหม่ตรงกัน
+    // check confirmation
     if (newPwd1 != newPwd2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านใหม่และยืนยันไม่ตรงกัน')),
+        const SnackBar(content: Text('New password and confirmation do not match')),
       );
       return;
     }
 
-    // เช็กความยาวขั้นต่ำ
+    // minimum length
     if (newPwd1.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านใหม่ต้องอย่างน้อย 6 ตัวอักษร')),
+        const SnackBar(content: Text('New password must be at least 6 characters')),
       );
       return;
     }
 
     if (mail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('บัญชีนี้ไม่มีอีเมลผูกไว้ ไม่สามารถเปลี่ยนรหัสผ่านได้')),
+        const SnackBar(content: Text('This account has no email linked and cannot change password')),
       );
       return;
     }
 
     setState(() => working = true);
     try {
-      // re-auth ด้วยรหัสเดิม
+      // re-auth with old password
       final cred = EmailAuthProvider.credential(email: mail, password: oldPwd);
       await user!.reauthenticateWithCredential(cred);
 
-      // อัปเดตรหัสผ่านใหม่
+      // update password
       await user!.updatePassword(newPwd1);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('เปลี่ยนรหัสผ่านเรียบร้อย')),
+        const SnackBar(content: Text('Password changed successfully')),
       );
     } on FirebaseAuthException catch (e) {
       final msg = switch (e.code) {
-        'wrong-password'        => 'รหัสผ่านเดิมไม่ถูกต้อง',
-        'weak-password'         => 'รหัสผ่านใหม่ไม่ปลอดภัยพอ',
-        'requires-recent-login' => 'โปรดเข้าสู่ระบบใหม่ก่อนเปลี่ยนรหัสผ่าน',
-        _                       => e.message ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ',
+        'wrong-password'        => 'Current password is incorrect',
+        'weak-password'         => 'New password is too weak',
+        'requires-recent-login' => 'Please sign in again before changing password',
+        _                       => e.message ?? 'Password change failed',
       };
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -257,7 +257,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('An error occurred: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => working = false);
@@ -266,7 +266,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
 
   void _openEditProfileSheet(BuildContext context) {
-    // hydrate จาก snapshot ล่าสุด “ที่นี่” (หลัง build)
+    // hydrate from the latest snapshot here (after build)
     _hydrateFrom(_lastUserData);
 
     showModalBottomSheet(
@@ -283,16 +283,16 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('แก้ไขโปรไฟล์', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const Text('Edit profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
 
                 _FormField(
-                  label: 'ชื่อ',
+                  label: 'Name',
                   controller: _nameCtrl,
                   icon: Icons.badge_rounded,
                 ),
                 _FormField(
-                  label: 'ติดต่อ',
+                  label: 'Contact',
                   controller: _contactCtrl,
                   icon: Icons.call_rounded,
                   keyboardType: TextInputType.phone,
@@ -300,11 +300,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedFaculty, // ใช้ initialValue แทน value
+                  initialValue: _selectedFaculty, // use initialValue instead of value
                   items: faculties.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
                   onChanged: (v) => setState(() => _selectedFaculty = v ?? faculties.first),
                   decoration: const InputDecoration(
-                    labelText: 'คณะ (Faculty)',
+                    labelText: 'Faculty',
                     prefixIcon: Icon(Icons.school_rounded),
                     border: OutlineInputBorder(),
                     filled: true,
@@ -317,7 +317,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                   onChanged: (v) => setState(() => _selectedRole = v ?? roles.first),
                   decoration: const InputDecoration(
-                    labelText: 'บทบาท (Role)',
+                    labelText: 'Role',
                     prefixIcon: Icon(Icons.person_rounded),
                     border: OutlineInputBorder(),
                     filled: true,
@@ -328,11 +328,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 FilledButton.icon(
                   onPressed: working ? null : _saveProfile,
                   icon: const Icon(Icons.save_rounded),
-                  label: const Text('บันทึก'),
+                  label: const Text('Save'),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'อีเมลอ่านได้อย่างเดียว • เปลี่ยนรหัสผ่านที่หน้าโปรไฟล์',
+                  'Email is read-only • Change password in Profile',
                   style: TextStyle(fontSize: 12, color: Colors.brown.shade500),
                 ),
                 const SizedBox(height: 8),
@@ -351,7 +351,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text('ยังไม่เข้าสู่ระบบ')),
+        body: Center(child: Text('Not logged in')),
       );
     }
 
@@ -360,16 +360,16 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: const Text('โปรไฟล์ของฉัน'),
+        title: const Text('My Profile'),
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: 'แก้ไขโปรไฟล์',
+            tooltip: 'Edit profile',
             onPressed: working ? null : () => _openEditProfileSheet(context),
             icon: const Icon(Icons.edit_rounded),
           ),
           IconButton(
-            tooltip: 'ออกจากระบบ',
+            tooltip: 'Sign out',
             onPressed: working ? null : () async {
               await auth.signOut();
               if (!mounted) return;
@@ -389,14 +389,14 @@ class _ProfilePageState extends State<ProfilePage> {
               }
               final data = snap.data?.data() ?? {};
 
-              // เก็บ snapshot ล่าสุดไว้
+              // store latest snapshot
               _lastUserData = data;
 
               final name    = (data['name'] ?? '').toString().trim();
               final email   = (data['email'] ?? user!.email ?? '').toString();
               final contact = (data['contact'] ?? 'None').toString();
-              final faculty = (data['faculty'] ?? 'ไม่ระบุ').toString();
-              final role    = (data['role'] ?? 'ไม่ระบุ').toString();
+              final faculty = (data['faculty'] ?? 'Not Specified').toString();
+              final role    = (data['role'] ?? 'Not Specified').toString();
 
               final avatarText = (name.isNotEmpty ? name : (email.isNotEmpty ? email : 'U'))
                   .trim()
@@ -459,11 +459,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 16),
 
                     // Info list
-                    _InfoTile(icon: Icons.badge_rounded, label: 'ชื่อ', value: name.isEmpty ? 'Unknown' : name),
-                    _InfoTile(icon: Icons.mail_rounded, label: 'อีเมล', value: email),
-                    _InfoTile(icon: Icons.call_rounded, label: 'ติดต่อ', value: contact),
-                    _InfoTile(icon: Icons.school_rounded, label: 'คณะ (Faculty)', value: faculty),
-                    _InfoTile(icon: Icons.person_rounded, label: 'บทบาท (Role)', value: role),
+                    _InfoTile(icon: Icons.badge_rounded, label: 'Name', value: name.isEmpty ? 'Unknown' : name),
+                    _InfoTile(icon: Icons.mail_rounded, label: 'Email', value: email),
+                    _InfoTile(icon: Icons.call_rounded, label: 'Contact', value: contact),
+                    _InfoTile(icon: Icons.school_rounded, label: 'Faculty', value: faculty),
+                    _InfoTile(icon: Icons.person_rounded, label: 'Role', value: role),
 
                     const SizedBox(height: 24),
 
@@ -478,20 +478,20 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('การจัดการข้อมูล', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const Text('Account management', style: TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 12),
 
                           FilledButton.tonalIcon(
                             onPressed: working ? null : () => _openChangePasswordSheet(context),
                             icon: const Icon(Icons.password_rounded),
-                            label: const Text('เปลี่ยนรหัสผ่าน'),
+                            label: const Text('Change password'),
                           ),
                           const SizedBox(height: 8),
 
                           FilledButton.tonalIcon(
                             onPressed: working ? null : () => _confirmDeleteAllItems(context),
                             icon: const Icon(Icons.delete_sweep_rounded),
-                            label: const Text('ลบรายการ (Items) ทั้งหมดของฉัน'),
+                            label: const Text('Delete all my items'),
                           ),
                           const SizedBox(height: 8),
 
@@ -499,7 +499,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                             onPressed: working ? null : () => _confirmDeleteAccount(context),
                             icon: const Icon(Icons.person_off_rounded),
-                            label: const Text('ลบบัญชีถาวร (พร้อมลบ Items ทั้งหมด)'),
+                            label: const Text('Delete account permanently'),
                           ),
                         ],
                       ),
@@ -527,14 +527,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('ยืนยันการลบรายการทั้งหมด'),
+        title: const Text('Confirm delete all items'),
         content: const Text(
-          'คุณต้องการลบไอเท็มทั้งหมดที่คุณเคยสร้างจริงหรือไม่?\n'
-          'การกระทำนี้ไม่สามารถย้อนกลับได้',
+          'Do you want to delete all items you created?\n'
+          'This action cannot be undone.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('ยืนยันลบ')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm delete')),
         ],
       ),
     );
@@ -542,7 +542,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await _deleteAllMyItems();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ลบไอเท็มของคุณทั้งหมดแล้ว')),
+        const SnackBar(content: Text('All your items have been deleted')),
       );
     }
   }
@@ -551,14 +551,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final ok1 = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('ลบบัญชีถาวร'),
+        title: const Text('Delete account permanently'),
         content: const Text(
-          'การลบบัญชีจะลบข้อมูลผู้ใช้และไอเท็มทั้งหมดของคุณอย่างถาวร\n'
-          'ต้องการดำเนินการต่อหรือไม่?',
+          'Deleting your account will permanently remove your user data and all items.\n'
+          'Do you want to continue?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ไม่ใช่ตอนนี้')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('ดำเนินการต่อ')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
         ],
       ),
     );
@@ -567,14 +567,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final ok2 = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('ยืนยันอีกครั้ง'),
-        content: const Text('คุณแน่ใจ 100% แล้วใช่ไหม? การกระทำนี้ย้อนกลับไม่ได้จริง ๆ'),
+        title: const Text('Confirm again'),
+        content: const Text('Are you 100% sure? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('ยืนยันลบถาวร'),
+            child: const Text('Confirm permanent delete'),
           ),
         ],
       ),
@@ -584,7 +584,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// ลบไอเท็มทั้งหมดของผู้ใช้ (รองรับทั้งฟิลด์ ownerId หรือ uid)
+  /// Delete all user's items (supports fields ownerId or uid)
   Future<void> _deleteAllMyItems() async {
     if (user == null) return;
     final uid = user!.uid;
@@ -592,10 +592,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => working = true);
     try {
-      // โปรเจ็กต์นี้ใช้ ownerUid เป็นมาตรฐาน
+      // this project uses ownerUid as standard
       await _deleteByField('ownerUid', uid);
 
-      // เผื่อชื่อฟิลด์เก่า
+      // in case of legacy field names
       await _deleteByField('uid', uid);
       await _deleteByField('ownerId', uid);
       await _deleteByField('userId', uid);
@@ -612,7 +612,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// helper: ลบเอกสารทั้งหมดใน items ที่ field == value (แบบแบ่งชุด)
+  /// helper: delete documents in items where field == value (batched)
   Future<void> _deleteByField(String field, String value) async {
     const int batchSize = 300;
     Query<Map<String, dynamic>> base =
@@ -626,18 +626,18 @@ class _ProfilePageState extends State<ProfilePage> {
       final snap = await q.get();
       if (snap.docs.isEmpty) break;
 
-      // ลบไฟล์รูป (ถ้ามี imagePath) ทีละตัวก่อน
+      // delete image files (if imagePath) first
       for (final d in snap.docs) {
         final data = d.data();
         final path = (data['imagePath'] ?? '') as String;
         if (path.isNotEmpty) {
           try {
             await FirebaseStorage.instance.ref().child(path).delete();
-          } catch (_) {/* ข้ามได้ */}
+          } catch (_) {/* ignore */}
         }
       }
 
-      // แล้วค่อยลบเอกสารแบบ batch
+      // then delete documents in batch
       final batch = fs.batch();
       for (final d in snap.docs) {
         batch.delete(d.reference);
@@ -649,7 +649,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// ลบทุกอย่างของผู้ใช้ แล้วลบบัญชี
+  /// delete everything for the user, then delete the account
   Future<void> _deleteAccountCascade() async {
     if (user == null) return;
     final uid = user!.uid;
@@ -662,13 +662,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ลบบัญชีและข้อมูลทั้งหมดเรียบร้อย')),
+        const SnackBar(content: Text('Account and all data deleted successfully')),
       );
       Navigator.of(context).popUntil((r) => r.isFirst);
     } on FirebaseAuthException catch (e) {
       final msg = (e.code == 'requires-recent-login')
-          ? 'ต้องเข้าสู่ระบบใหม่ก่อนลบบัญชี (Security Requirement)'
-          : (e.message ?? 'ลบบัญชีไม่สำเร็จ');
+          ? 'Please sign in again before deleting the account (security requirement)'
+          : (e.message ?? 'Account deletion failed');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
@@ -676,7 +676,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('An error occurred: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => working = false);

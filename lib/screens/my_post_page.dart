@@ -17,13 +17,13 @@ class _MyPostPageState extends State<MyPostPage> {
   final searchCtrl = TextEditingController();
   String filter = 'All';
 
-  // สีพื้นและการ์ดให้ตรงกับ lost_list_page
-  static const Color bg = Color(0xFFFFF6DE); // ถ้าอยากเท่ากันจริง ๆ เปลี่ยนเป็น AppTheme.cream ก็ได้
+  // Background and card colors to match lost_list_page
+  static const Color bg = Color(0xFFFFF6DE); // use AppTheme.cream if you prefer exact match
   static const Color cardBg = Color(0xFFFFF7EF);
   static const Color pillLost = Color(0xFFFFE7CE);
   static const Color pillFound = Color(0xFFE8F5F2);
 
-  // เงาให้เหมือน lost_list_page (spreadRadius=4)
+  // Shadows similar to lost_list_page (spreadRadius=4)
   List<BoxShadow> get _softShadow => [
         BoxShadow(
           color: Colors.black.withOpacity(0.06),
@@ -41,8 +41,7 @@ class _MyPostPageState extends State<MyPostPage> {
         ),
       ];
 
-
-    Widget _headerCard() {
+  Widget _headerCard() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 10, 0, 12),
       child: Container(
@@ -56,7 +55,7 @@ class _MyPostPageState extends State<MyPostPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Search bar (ไม่ต้องมี Material ซ้อนอีกชั้น)
+              // Search bar (no extra Material layer needed)
               TextField(
                 controller: searchCtrl,
                 onChanged: (_) => setState(() {}),
@@ -73,7 +72,7 @@ class _MyPostPageState extends State<MyPostPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Filter chips (จัดให้อยู่ในกว้างเดียวกับการ์ด)
+              // Filter chips (kept inside the card width)
               Row(
                 children: [
                   _chip('All'),
@@ -132,7 +131,7 @@ class _MyPostPageState extends State<MyPostPage> {
             return ListView(
               children: [
                 ...header,
-                _errorBox('เกิดข้อผิดพลาดในการโหลดโพสต์ของคุณ:\n${snap.error}'),
+                _errorBox('Failed to load your posts:\n${snap.error}'),
               ],
             );
           }
@@ -182,15 +181,15 @@ class _MyPostPageState extends State<MyPostPage> {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('ลบโพสต์นี้?'),
-                    content: const Text('การลบไม่สามารถย้อนกลับได้'),
+                    title: const Text('Delete this post?'),
+                    content: const Text('This action cannot be undone'),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('ยกเลิก')),
+                          child: const Text('Cancel')),
                       ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('ลบ')),
+                          child: const Text('Delete')),
                     ],
                   ),
                 );
@@ -201,7 +200,7 @@ class _MyPostPageState extends State<MyPostPage> {
                     .delete();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('ลบโพสต์แล้ว')));
+                      .showSnackBar(const SnackBar(content: Text('Post deleted')));
                 }
               }
 
@@ -285,7 +284,7 @@ class _MyPostPageState extends State<MyPostPage> {
           decoration: BoxDecoration(
             color: isFound ? pillFound : pillLost,
             borderRadius: BorderRadius.circular(999),
-            boxShadow: _tinyShadow, // ให้เด้งเท่ากัน
+            boxShadow: _tinyShadow, // keep the same elevation
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -300,7 +299,7 @@ class _MyPostPageState extends State<MyPostPage> {
           ),
         );
 
-    // ใช้ Ink + BoxDecoration + boxShadow ให้เหมือน lost_list_page
+    // Use Ink + BoxDecoration + boxShadow to match lost_list_page
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -308,13 +307,13 @@ class _MyPostPageState extends State<MyPostPage> {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: _softShadow, // เงาการ์ดเหมือนกัน
+          boxShadow: _softShadow, // same card shadow
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // รูป 70x70 + เงาเล็ก เหมือนกัน
+              // 96x96 image + small shadow (same as other list)
               Container(
                 decoration: BoxDecoration(
                   boxShadow: _tinyShadow,
@@ -330,8 +329,8 @@ class _MyPostPageState extends State<MyPostPage> {
                           fit: BoxFit.cover,
                         )
                       : Container(
-                          width: 96, //70
-                          height: 96, //70
+                          width: 96,
+                          height: 96,
                           color: Colors.white,
                           child: const Icon(Icons.image_not_supported_rounded),
                         ),
@@ -388,7 +387,7 @@ class _MyPostPageState extends State<MyPostPage> {
                 ),
               ),
               const SizedBox(width: 6),
-              // ปุ่มเมนูขวาบนให้ขนาดสอดคล้อง
+              // Right-side menu button sized to match layout
               PopupMenuButton<String>(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -398,8 +397,8 @@ class _MyPostPageState extends State<MyPostPage> {
                   if (v == 'delete') onDelete();
                 },
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
-                  PopupMenuItem(value: 'delete', child: Text('ลบ')),
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
             ],
@@ -410,7 +409,7 @@ class _MyPostPageState extends State<MyPostPage> {
   }
 
   Widget _emptyState(BuildContext context) {
-    // ให้ขนาด/ระยะเหมือน lost_list_page และไม่ใส่ boxShadow (ตามต้นฉบับ)
+    // Size/spacing matches lost_list_page and no extra boxShadow (as original)
     return Container(
       margin: const EdgeInsets.only(top: 24),
       padding: const EdgeInsets.all(24),
@@ -422,11 +421,11 @@ class _MyPostPageState extends State<MyPostPage> {
         children: [
           const Icon(Icons.folder_open_rounded, size: 48),
           const SizedBox(height: 12),
-          const Text('ยังไม่มีโพสต์ของคุณ',
+          const Text('You have no posts yet',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 8),
           Text(
-            'สร้างโพสต์ Lost/Found แรกของคุณเพื่อให้เพื่อน ๆ ช่วยตามหาได้ง่ายขึ้น',
+            'Create your first Lost/Found post so friends can help you find it',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade700),
           ),

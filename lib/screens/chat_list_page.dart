@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../theme.dart';
 import 'chat_page.dart';
 import '../services/chat_service.dart';
-// ⬇️ เพิ่มบรรทัดนี้เพื่อใช้แท็บ Home
+// ⬇️ Add this line to use the Home tab
 import '../widgets/bottom_home_bar.dart';
 
 class ChatListPage extends StatelessWidget {
@@ -36,20 +36,20 @@ class ChatListPage extends StatelessWidget {
         backgroundColor: AppTheme.cream,
         elevation: 0,
       ),
-      // ⬇️ ใส่แท็บปุ่ม Home ด้านล่าง
+      // ⬇️ Add Home button tab at the bottom
       bottomNavigationBar: const BottomHomeBar(),
       body: StreamBuilder<QuerySnapshot>(
         stream: q.snapshots(),
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Text('โหลดรายชื่อแชทไม่ได้:\n${snap.error}'));
+            return Center(child: Text('Failed to load chat list:\n${snap.error}'));
           }
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
-            return const Center(child: Text('ยังไม่มีการสนทนา'));
+            return const Center(child: Text('No conversations yet'));
           }
 
           return ListView.separated(
@@ -93,17 +93,17 @@ class ChatListPage extends StatelessWidget {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          title: const Text('ลบห้องแชทนี้?'),
-                          content: const Text('ข้อความทั้งหมดจะถูกลบถาวรสำหรับทั้งสองฝ่าย'),
+                          title: const Text('Delete this chat?'),
+                          content: const Text('All messages will be permanently deleted for both participants'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context, false),
-                              child: const Text('ยกเลิก'),
+                              child: const Text('Cancel'),
                             ),
                             FilledButton(
                               style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                               onPressed: () => Navigator.pop(context, true),
-                              child: const Text('ลบ'),
+                              child: const Text('Delete'),
                             ),
                           ],
                         ),
@@ -111,7 +111,7 @@ class ChatListPage extends StatelessWidget {
                       if (ok == true) {
                         await ChatService.deleteChat(chatId);
                       }
-                      // ไม่ให้ Dismiss ออกจากจอทันที ให้รอสตรีมอัปเดตแทน
+                      // Do not dismiss immediately; wait for stream update instead
                       return false;
                     },
                     child: ListTile(
@@ -144,7 +144,7 @@ class ChatListPage extends StatelessWidget {
                         ],
                       ),
                       subtitle: Text(
-                        lastMsg.isEmpty ? 'เริ่มการสนทนา...' : lastMsg,
+                        lastMsg.isEmpty ? 'Start the conversation...' : lastMsg,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

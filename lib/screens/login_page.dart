@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ เพิ่มบรรทัดนี้
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input.dart';
 import '../theme.dart';
@@ -14,28 +14,28 @@ class LoginPage extends StatefulWidget {
 enum _AuthMode { signIn, reset, signUp }
 
 class _LoginPageState extends State<LoginPage> {
-  // controllers หลัก
+  // Main controllers
   final email = TextEditingController();
   final pass  = TextEditingController();
-  // เพิ่มสำหรับ sign up
+  // Additional for sign up
   final confirm = TextEditingController();
   final displayName = TextEditingController();
   final contact = TextEditingController();
 
-  // state
+  // State
   bool loading = false;
   bool showPwd = false;
   bool showConfirmPwd = false;
   _AuthMode mode = _AuthMode.signIn;
 
-  // dropdowns
+  // Dropdowns
   static const List<String> faculties = [
-    'ไม่ระบุ','Other','SI','RA','BM','PY','DT','NS','MT','PH','PT','VS','TM','SC','EN','LA','SH','EG','ICT','CRS','SS','RS'
+    'Not Specified','Other','SI','RA','BM','PY','DT','NS','MT','PH','PT','VS','TM','SC','EN','LA','SH','EG','ICT','CRS','SS','RS'
   ];
-  static const List<String> roles = ['ไม่ระบุ','Student','Teacher','Staff','Other'];
+  static const List<String> roles = ['Not Specified','Student','Teacher','Staff','Other'];
 
-  String faculty = 'ไม่ระบุ';
-  String role = 'ไม่ระบุ';
+  String faculty = 'Not Specified';
+  String role = 'Not Specified';
 
   @override
   void dispose() {
@@ -70,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
     final mail = email.text.trim();
     final pwd  = pass.text.trim();
     if (mail.isEmpty || pwd.isEmpty) {
-      _showError('กรอกอีเมลและรหัสผ่านให้ครบก่อนนะ');
+      _showError('Please enter both email and password');
       return;
     }
 
@@ -82,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       await _maybeReturnToAuthGate();
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'เข้าสู่ระบบไม่สำเร็จ');
+      _showError(e.message ?? 'Sign in failed');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -92,17 +92,17 @@ class _LoginPageState extends State<LoginPage> {
     if (loading) return;
     final mail = email.text.trim();
     if (mail.isEmpty) {
-      _showError('พิมพ์อีเมลก่อน แล้วกด “ยืนยัน” อีกครั้งนะ');
+      _showError('Please enter your email first');
       return;
     }
     setState(() => loading = true);
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: mail);
-      _showInfo('ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ $mail แล้ว');
-      // กลับสู่การ์ดเข้าสู่ระบบ
+      _showInfo('Password reset link sent to $mail');
+      // Back to sign in card
       _switchMode(_AuthMode.signIn);
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'ส่งอีเมลรีเซ็ตรหัสผ่านไม่สำเร็จ');
+      _showError(e.message ?? 'Failed to send password reset email');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -117,43 +117,43 @@ class _LoginPageState extends State<LoginPage> {
     final cPwd = confirm.text.trim();
 
     if (mail.isEmpty || pwd.isEmpty || cPwd.isEmpty) {
-      _showError('กรอก Email / Password / Confirm Password ให้ครบก่อนนะ');
+      _showError('Please fill in Email, Password, and Confirm Password');
       return;
     }
     if (pwd != cPwd) {
-      _showError('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+      _showError('Passwords do not match');
       return;
     }
 
     setState(() => loading = true);
     try {
-      // สมัคร user
+      // Register user
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: mail,
         password: pwd,
       );
 
-      // เตรียมข้อมูลโปรไฟล์
+      // Prepare profile data
       final uid = cred.user!.uid;
       final data = {
         'uid'     : uid,
         'email'   : mail,
         'name'    : (displayName.text.trim().isEmpty) ? 'Unknown' : displayName.text.trim(),
         'contact' : (contact.text.trim().isEmpty) ? 'None' : contact.text.trim(),
-        'faculty' : faculty, // ตัวย่อ
+        'faculty' : faculty,
         'role'    : role,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // สร้างเอกสารใน Firestore (ปรับชื่อคอลเลกชันได้ตามโปรเจ็กต์)
+      // Create document in Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
 
-      // createUser จะล็อกอินให้อยู่แล้ว -> กลับ gateway
+      // createUser logs in automatically -> return to gateway
       await _maybeReturnToAuthGate();
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? 'สมัครสมาชิกไม่สำเร็จ');
+      _showError(e.message ?? 'Sign up failed');
     } catch (e) {
-      _showError('บันทึกข้อมูลผู้ใช้ไม่สำเร็จ: $e');
+      _showError('Failed to save user data: $e');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -176,9 +176,9 @@ class _LoginPageState extends State<LoginPage> {
     final viewportH = MediaQuery.of(context).size.height;
 
     final title = switch (mode) {
-      _AuthMode.signIn => 'เข้าสู่ระบบ',
+      _AuthMode.signIn => 'Sign In',
       _AuthMode.reset  => 'Reset Password',
-      _AuthMode.signUp => 'สร้างบัญชี',
+      _AuthMode.signUp => 'Create Account',
     };
 
     return Scaffold(
@@ -186,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            // พื้นหลังวาดครอบคลุมความสูงทั้งหมด
+            // Background covering full height
             SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: viewportH),
@@ -232,7 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'ตามหา • ส่งคืน • ง่ายและปลอดภัย',
+                                'Find • Return • Easy and Safe',
                                 style: TextStyle(
                                   color: Colors.brown.shade400,
                                   fontSize: 13,
@@ -243,7 +243,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 22),
 
-                          // การ์ดฟอร์ม
+                          // Form card
                           Container(
                             decoration: BoxDecoration(
                               color: cardBg,
@@ -267,14 +267,14 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 const SizedBox(height: 16),
 
-                                // ฟอร์มแต่ละโหมด
+                                // Forms for each mode
                                 ...switch (mode) {
                                   _AuthMode.signIn => _buildSignInForm(),
                                   _AuthMode.reset  => _buildResetForm(),
                                   _AuthMode.signUp => _buildSignUpForm(),
                                 },
 
-                                // แถบลิงก์เปลี่ยนโหมดด้านล่าง
+                                // Mode switching links at bottom
                                 const SizedBox(height: 10),
                                 if (mode == _AuthMode.signIn) ...[
                                   _OrDivider(textColor: Colors.brown.shade300),
@@ -285,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
                                       spacing: 6,
                                       children: [
                                         Text(
-                                          'ยังไม่มีบัญชี?',
+                                          'Don\'t have an account?',
                                           style: TextStyle(
                                             color: Colors.brown.shade400,
                                             fontSize: 13,
@@ -293,7 +293,7 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                         TextButton(
                                           onPressed: loading ? null : () => _switchMode(_AuthMode.signUp),
-                                          child: const Text('สร้างบัญชีใหม่'),
+                                          child: const Text('New Account'),
                                         ),
                                       ],
                                     ),
@@ -302,7 +302,7 @@ class _LoginPageState extends State<LoginPage> {
                                   const SizedBox(height: 6),
                                   TextButton(
                                     onPressed: loading ? null : () => _switchMode(_AuthMode.signIn),
-                                    child: const Text('กลับไปหน้าเข้าสู่ระบบ'),
+                                    child: const Text('Back to Sign In'),
                                   ),
                                 ],
                               ],
@@ -353,7 +353,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
 
-      // ✅ ลิงก์ "ลืมรหัสผ่าน?" ชิดขวา ใต้ช่องรหัสผ่าน
+      // "Forgot Password?" link aligned right below password field
       const SizedBox(height: 6),
       Align(
         alignment: Alignment.centerRight,
@@ -361,10 +361,10 @@ class _LoginPageState extends State<LoginPage> {
           onPressed: loading ? null : () => _switchMode(_AuthMode.reset),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            foregroundColor: const Color(0xFFE69A8C), // โทนชมพูอ่อนคล้ายในภาพ
+            foregroundColor: const Color(0xFFE69A8C),
             textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          child: const Text('ลืมรหัสผ่าน?'),
+          child: const Text('Forgot Password?'),
         ),
       ),
 
@@ -377,7 +377,6 @@ class _LoginPageState extends State<LoginPage> {
     ];
   }
 
-
   List<Widget> _buildResetForm() {
     return [
       AppInput(
@@ -387,7 +386,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       const SizedBox(height: 12),
       AppButton(
-        text: 'ยืนยัน',
+        text: 'Confirm',
         onPressed: loading ? null : _submitReset,
         icon: Icons.check_circle_rounded,
       ),
@@ -424,30 +423,35 @@ class _LoginPageState extends State<LoginPage> {
       const SizedBox(height: 12),
       AppInput(
         controller: displayName,
-        hint: 'ชื่อ (เว้นว่าง = Unknown)',
+        hint: 'Name (leave blank = Unknown)',
       ),
       const SizedBox(height: 12),
       AppInput(
         controller: contact,
-        hint: 'Contact (เว้นว่าง = None)',
+        hint: 'Contact (leave blank = None)',
       ),
       const SizedBox(height: 12),
+      const Text(
+        '  Faculty and Role (optional)',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 4),
       _DropField<String>(
         label: 'Faculty',
         value: faculty,
         items: faculties,
-        onChanged: (v) => setState(() => faculty = v ?? 'ไม่ระบุ'),
+        onChanged: (v) => setState(() => faculty = v ?? 'Not Specified'),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 8),
       _DropField<String>(
         label: 'Role',
         value: role,
         items: roles,
-        onChanged: (v) => setState(() => role = v ?? 'ไม่ระบุ'),
+        onChanged: (v) => setState(() => role = v ?? 'Not Specified'),
       ),
       const SizedBox(height: 12),
       AppButton(
-        text: 'ยืนยัน',
+        text: 'Confirm',
         onPressed: loading ? null : _submitSignUp,
         icon: Icons.check_circle_rounded,
       ),
@@ -455,7 +459,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// เส้นคั่น "หรือ"
+/// "Or" divider
 class _OrDivider extends StatelessWidget {
   final Color? textColor;
   const _OrDivider({this.textColor});
@@ -468,7 +472,7 @@ class _OrDivider extends StatelessWidget {
         const Expanded(child: Divider(thickness: 1, height: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text('หรือ', style: TextStyle(color: color)),
+          child: Text('or', style: TextStyle(color: color)),
         ),
         const Expanded(child: Divider(thickness: 1, height: 1)),
       ],
@@ -476,7 +480,7 @@ class _OrDivider extends StatelessWidget {
   }
 }
 
-/// Dropdown ให้หน้าตาเข้าเค้ากับ AppInput
+/// Dropdown matching AppInput styling
 class _DropField<T> extends StatelessWidget {
   final String label;
   final T? value;
@@ -496,7 +500,7 @@ class _DropField<T> extends StatelessWidget {
         hintText: label,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: Colors.brown.shade100),
@@ -523,7 +527,7 @@ class _DropField<T> extends StatelessWidget {
   }
 }
 
-/// พื้นหลังลายโค้งนุ่ม ๆ
+/// Soft curved background
 class _SoftShapesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

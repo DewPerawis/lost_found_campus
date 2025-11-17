@@ -14,7 +14,7 @@ class OtherProfilePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: const Text('โปรไฟล์ผู้ใช้'),
+        title: const Text('User Profile'),
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -27,8 +27,8 @@ class OtherProfilePage extends StatelessWidget {
 
           final name    = (data['name'] ?? '').toString().trim();
           final contact = (data['contact'] ?? 'None').toString();
-          final faculty = (data['faculty'] ?? 'ไม่ระบุ').toString();
-          final role    = (data['role'] ?? 'ไม่ระบุ').toString();
+          final faculty = (data['faculty'] ?? 'Not Specified').toString();
+          final role    = (data['role'] ?? 'Not Specified').toString();
 
           final avatarText = (name.isNotEmpty ? name : 'U')
               .trim()
@@ -71,7 +71,7 @@ class OtherProfilePage extends StatelessWidget {
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
-                            Text('ผู้ใช้ในระบบ', style: TextStyle(color: Colors.brown.shade600)),
+                            Text('Registered user', style: TextStyle(color: Colors.brown.shade600)),
                           ],
                         ),
                       ),
@@ -80,10 +80,10 @@ class OtherProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                _InfoTile(icon: Icons.badge_rounded,  label: 'ชื่อ',             value: name.isEmpty ? 'Unknown' : name),
-                _InfoTile(icon: Icons.call_rounded,   label: 'ติดต่อ',          value: contact),
-                _InfoTile(icon: Icons.school_rounded, label: 'คณะ (Faculty)',   value: faculty),
-                _InfoTile(icon: Icons.person_rounded, label: 'บทบาท (Role)',    value: role),
+                _InfoTile(icon: Icons.badge_rounded,  label: 'Name',    value: name.isEmpty ? 'Unknown' : name),
+                _InfoTile(icon: Icons.call_rounded,   label: 'Contact', value: contact),
+                _InfoTile(icon: Icons.school_rounded, label: 'Faculty', value: faculty),
+                _InfoTile(icon: Icons.person_rounded, label: 'Role',    value: role),
               ],
             ),
           );

@@ -7,8 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class AddItemPage extends StatefulWidget {
-  final String? docId;                       // ถ้าแก้ไขจะมี docId
-  final Map<String, dynamic>? initialData;   // ข้อมูลเดิม (จาก MyPostPage)
+  final String? docId;                       // docId is present when editing
+  final Map<String, dynamic>? initialData;   // initial data (from MyPostPage)
   const AddItemPage({super.key, this.docId, this.initialData});
 
   @override
@@ -16,11 +16,11 @@ class AddItemPage extends StatefulWidget {
 }
 
 class _AddItemPageState extends State<AddItemPage> {
-  // โทนสี
+  // Colors
   static const Color _bg = Color(0xFFFFF3D6);
-  static const Color _cardBg = Color(0xFFFFF7EF); // ใช้กับบล็อกหมายเหตุ
-  static const Color _fieldFill = Colors.white;   // กล่องอินพุตให้ขาวชัด
-  static const Color _border = Color.fromARGB(255, 243, 233, 223); // เส้นขอบปกติ
+  static const Color _cardBg = Color(0xFFFFF7EF); // used for the note block
+  static const Color _fieldFill = Colors.white;   // input fields use white fill
+  static const Color _border = Color.fromARGB(255, 243, 233, 223); // default border color
   static const double _radius = 14;
 
   final _formKey = GlobalKey<FormState>();
@@ -29,8 +29,8 @@ class _AddItemPageState extends State<AddItemPage> {
   final _descCtrl = TextEditingController();
 
   String _status = 'lost';            // 'lost' | 'found'
-  String? _imageUrl;                  // downloadURL บน Storage
-  String? _imagePath;                 // path บน Storage (เผื่อลบ)
+  String? _imageUrl;                  // download URL on Storage
+  String? _imagePath;                 // path on Storage (for deletion)
 
   bool _isSaving = false;
   bool _isUploadingImage = false;
@@ -62,7 +62,7 @@ class _AddItemPageState extends State<AddItemPage> {
     super.dispose();
   }
 
-  // เปลือกหุ้มเพื่อเพิ่มเงานุ่มๆ ให้ทุกกล่อง
+  // Wrapper to add a soft shadow to each input container
   Widget _fieldShell(Widget child) {
     return Material(
       color: Colors.transparent,
@@ -73,7 +73,7 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
-  // Decoration ของอินพุต: ขอบชัด + เปลี่ยนสีเมื่อโฟกัส
+  // Input decoration: clear border + change color on focus
   InputDecoration _decor(String hint) => InputDecoration(
         filled: true,
         fillColor: _fieldFill,
@@ -104,7 +104,7 @@ class _AddItemPageState extends State<AddItemPage> {
     setState(() => _isSaving = true);
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) throw Exception('กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+      if (uid == null) throw Exception('Please sign in again.');
 
       final data = <String, dynamic>{
         'title': _titleCtrl.text.trim(),
@@ -121,7 +121,7 @@ class _AddItemPageState extends State<AddItemPage> {
         await col.doc(widget.docId).update(data);
         if (mounted) {
           ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('บันทึกการแก้ไขแล้ว')));
+              .showSnackBar(const SnackBar(content: Text('Changes saved.')));
         }
       } else {
         data['ownerUid'] = uid;
@@ -129,7 +129,7 @@ class _AddItemPageState extends State<AddItemPage> {
         await col.add(data);
         if (mounted) {
           ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('สร้างโพสต์แล้ว')));
+              .showSnackBar(const SnackBar(content: Text('Post created.')));
         }
       }
 
@@ -137,14 +137,14 @@ class _AddItemPageState extends State<AddItemPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+            .showSnackBar(SnackBar(content: Text('An error occurred. $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  // ==== เลือกรูปจากเครื่อง + อัปโหลดขึ้น Firebase Storage ====
+  // ==== Pick image from device and upload to Firebase Storage ====
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final XFile? picked =
@@ -155,7 +155,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) throw Exception('ไม่พบผู้ใช้');
+      if (uid == null) throw Exception('User not found.');
 
       final fileId = widget.docId ?? DateTime.now().millisecondsSinceEpoch.toString();
       final path = 'items/$uid/$fileId.jpg';
@@ -178,23 +178,23 @@ class _AddItemPageState extends State<AddItemPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ: $e')));
+            SnackBar(content: Text('Image upload failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isUploadingImage = false);
     }
   }
 
-  // ลบรูป (พร้อมลบไฟล์ใน Storage ถ้ารู้ path)
+  // Remove image (also delete file in Storage if the path is known)
   Future<void> _removeImage() async {
     if (_imageUrl == null || _imageUrl!.isEmpty) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('ลบรูปภาพนี้?'),
+        title: const Text('Delete this image?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
         ],
       ),
     );
@@ -233,7 +233,7 @@ class _AddItemPageState extends State<AddItemPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  // การ์ดรูปภาพ + ปุ่ม (ยกเงา + ขอบชัด)
+                  // Image card + buttons (elevated + border)
                   Material(
                     color: Colors.white,
                     elevation: 3.5,
@@ -264,7 +264,7 @@ class _AddItemPageState extends State<AddItemPage> {
                               FilledButton.icon(
                                 onPressed: _isUploadingImage ? null : _pickImage,
                                 icon: const Icon(Icons.image_rounded),
-                                label: Text(_isUploadingImage ? 'กำลังอัปโหลด...' : 'เปลี่ยนรูป'),
+                                label: Text(_isUploadingImage ? 'Uploading...' : 'Select Image'),
                               ),
                               const SizedBox(width: 12),
                               TextButton.icon(
@@ -272,7 +272,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                     ? null
                                     : _removeImage,
                                 icon: const Icon(Icons.delete_outline_rounded),
-                                label: const Text('ลบรูป'),
+                                label: const Text('Delete Image'),
                               ),
                             ],
                           ),
@@ -282,50 +282,50 @@ class _AddItemPageState extends State<AddItemPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ชื่อไอเท็ม
+                  // Item name
                   _fieldShell(
                     TextFormField(
                       controller: _titleCtrl,
-                      decoration: _decor('ชื่อไอเท็ม'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'กรุณากรอกชื่อไอเท็ม' : null,
+                      decoration: _decor('Item Name'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter the item name.' : null,
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // สถานะ
+                  // Status
                   _fieldShell(
                     DropdownButtonFormField<String>(
                       value: _status,
-                      decoration: _decor('สถานะ'),
+                      decoration: _decor('Status'),
                       items: const [
-                        DropdownMenuItem(value: 'lost', child: Text('lost')),
-                        DropdownMenuItem(value: 'found', child: Text('found')),
+                        DropdownMenuItem(value: 'lost', child: Text('Lost')),
+                        DropdownMenuItem(value: 'found', child: Text('Found')),
                       ],
                       onChanged: (v) => setState(() => _status = v ?? 'lost'),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // สถานที่
+                  // Place
                   _fieldShell(
                     TextFormField(
                       controller: _placeCtrl,
-                      decoration: _decor('สถานที่'),
+                      decoration: _decor('Place'),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // รายละเอียด
+                  // Description
                   _fieldShell(
                     TextFormField(
                       controller: _descCtrl,
-                      decoration: _decor('รายละเอียดเพิ่มเติม'),
+                      decoration: _decor('Description'),
                       maxLines: 4,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // ปุ่มบันทึกให้เด่นขึ้น
+                  // Prominent save button
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
@@ -335,12 +335,12 @@ class _AddItemPageState extends State<AddItemPage> {
                         shadowColor: Colors.black.withOpacity(.12),
                       ),
                       onPressed: (_isSaving || _isUploadingImage) ? null : _save,
-                      child: Text(_isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'),
+                      child: Text(_isEdit ? 'Save changes' : 'Save'),
                     ),
                   ),
                   const SizedBox(height: 10),
 
-                  // หมายเหตุ
+                  // Note
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -350,7 +350,7 @@ class _AddItemPageState extends State<AddItemPage> {
                       border: Border.all(color: _border, width: 1),
                     ),
                     child: const Text(
-                      'หมายเหตุ: คำสั่งอาจรอคิว ใช้เมนู : ที่หน้า My Post',
+                      'Note: Actions may be queued. Use the “:” menu on the My Post page.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12),
                     ),
