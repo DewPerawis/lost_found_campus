@@ -12,12 +12,12 @@ A Flutter + Firebase mobile application for reporting, browsing, and managing lo
 
 ---
 
-🎥 Demo Video 
-<p> <a href="https://youtu.be/9TeAmi0ed8E" target="_blank"> <img src="https://img.shields.io/badge/Watch%20Demo%20Video-FF0000?logo=youtube&logoColor=white&style=for-the-badge" /> </a> </p>
+## 🎥 Presentation Video & Demo Video 
+<p> <a href="https://youtu.be/9TeAmi0ed8E" target="_blank"> <img src="https://img.shields.io/badge/Watch%20Presentation%20Video%20&%20Demo%20Video-FF0000?logo=youtube&logoColor=white&style=for-the-badge" /> </a> </p>
 
 ---
 
-🖥 Presentation File
+## 🖥 Presentation File
 <p> <a href="Presentation/Gr15_ITCS259_Final_Presentation.pdf"> <img src="https://img.shields.io/badge/Download%20Presentation-PDF-blue?style=for-the-badge&logo=adobeacrobatreader" /> </a> </p>
 
 ---
@@ -201,7 +201,3 @@ is stored directly in Firebase (Authentication, Firestore, and Storage). No loca
 This project is for **academic and educational purposes only**.
 
 ---
-
-## ⭐ If you find this project useful, please give it a star on GitHub!
-
-```
