@@ -18,7 +18,7 @@ A Flutter + Firebase mobile application for reporting, browsing, and managing lo
 ---
 
 ## 🖥 Presentation File
-<p> <a href="Presentation/Gr15_ITCS259_Final_Presentation.pdf"> <img src="https://img.shields.io/badge/Download%20Presentation-PDF-blue?style=for-the-badge&logo=adobeacrobatreader" /> </a> </p>
+<p> <a href="presentation/Gr15_ITCS259_Final_Presentation.pdf"> <img src="https://img.shields.io/badge/Download%20Presentation-PDF-blue?style=for-the-badge&logo=adobeacrobatreader" /> </a> </p>
 
 ---
 
