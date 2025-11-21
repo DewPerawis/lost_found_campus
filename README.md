@@ -5,7 +5,7 @@ A Flutter + Firebase mobile application for reporting, browsing, and managing lo
 <p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&logoColor=white" />
   <img src="https://img.shields.io/badge/Firebase-Live-orange?logo=firebase&logoColor=white" />
-  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green" />
+  <img src="https://img.shields.io/badge/Platform-Android-green" />
   <img src="https://img.shields.io/badge/Status-Completed-success" />
   <img src="https://img.shields.io/badge/License-Academic-lightgrey" />
 </p>
