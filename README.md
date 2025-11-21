@@ -22,6 +22,12 @@ A Flutter + Firebase mobile application for reporting, browsing, and managing lo
 
 ---
 
+## 📄 Project Report
+<p> <a href="report/Gr15_ITCS259_Final_Report.pdf"> <img src="https://img.shields.io/badge/Download%20Report-PDF-blue?style=for-the-badge&logo=adobeacrobatreader" />  </a> </p>
+
+---
+
+
 ## 📌 Overview
 
 This application allows users to:
