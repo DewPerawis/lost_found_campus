@@ -27,7 +27,6 @@ A Flutter + Firebase mobile application for reporting, browsing, and managing lo
 
 ---
 
-
 ## 📌 Overview
 
 This application allows users to:
@@ -132,6 +131,21 @@ flutter run
 ```
 
 ---
+
+## ⚠️ IMPORTANT: 🔑 Key Notice
+
+If you clone this repository and the app does not run correctly,  
+please generate **your own Google Cloud / Firebase API keys** and update the config files.
+
+> For security reasons, the original API keys used in my development
+> have been rotated and should no longer be used.
+
+Steps (brief):
+1. Create your own Firebase / Google Cloud project.
+2. Enable the required APIs and generate new API keys.
+3. Replace the API key(s) in `lib/firebase_options.dart` (and any other config files, if needed).
+
+----
 
 ## 📱 Key Features
 
